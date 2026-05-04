@@ -25,11 +25,11 @@
   const BG_COLOR = '#22213A';
 
   const BRAND_SHAPES = {
-    cShape:     { color: '#EE4D5A' }, // Coral — open ring (the `g`/`o` element)
-    triangle:   { color: '#F2B632' }, // Yellow — accent triangle
-    chevron:    { color: '#3047C7' }, // Blue — `>` arrow
-    halfCircle: { color: '#C8197A' }, // Pink — half-disc
-    square:     { color: '#2BA66E' }, // Green — solid square
+    ring:     { color: '#EE4D5A' }, // Coral — closed donut (the `O` element)
+    triangle: { color: '#F2B632' }, // Yellow — accent triangle
+    chevron:  { color: '#3047C7' }, // Blue — `>` arrow
+    halfRing: { color: '#C8197A' }, // Pink — hollow ∪ half-ring, 180° opening
+    square:   { color: '#2BA66E' }, // Green — solid square
   };
 
   // Reference width — shapes are defined at this width and scale proportionally.
@@ -41,30 +41,30 @@
   // Color is auto-applied from BRAND_SHAPES — cannot be overridden per instance.
   // Multiple instances per kind are encouraged; just vary size + position.
   const SHAPES = [
-    // Coral C-shapes (primary anchors) ────────────────────────────────────────
-    { kind: 'cShape',     x: 220,  y: 350, size: 175, rotation: 0.1 },
-    { kind: 'cShape',     x: 720,  y: 540, size: 130, rotation: 1.2 },
-    { kind: 'cShape',     x: 1240, y: 580, size: 100, rotation: -0.4 },
+    // Coral closed rings (primary anchors) ────────────────────────────────────
+    { kind: 'ring',     x: 220,  y: 350, size: 175 },
+    { kind: 'ring',     x: 720,  y: 540, size: 130 },
+    { kind: 'ring',     x: 1240, y: 580, size: 100 },
 
     // Yellow triangles (accents) ──────────────────────────────────────────────
-    { kind: 'triangle',   x: 360,  y: 100, size: 110 },
-    { kind: 'triangle',   x: 950,  y: 80,  size: 70 },
-    { kind: 'triangle',   x: 1370, y: 150, size: 50 },
+    { kind: 'triangle', x: 360,  y: 100, size: 110 },
+    { kind: 'triangle', x: 950,  y: 80,  size: 70 },
+    { kind: 'triangle', x: 1370, y: 150, size: 50 },
 
     // Blue chevrons (secondary visual) ────────────────────────────────────────
-    { kind: 'chevron',    x: 100,  y: 540, size: 165 },
-    { kind: 'chevron',    x: 870,  y: 580, size: 140 },
-    { kind: 'chevron',    x: 1100, y: 200, size: 95 },
+    { kind: 'chevron',  x: 100,  y: 540, size: 165 },
+    { kind: 'chevron',  x: 870,  y: 580, size: 140 },
+    { kind: 'chevron',  x: 1100, y: 200, size: 95 },
 
-    // Pink half-circles (accents) ─────────────────────────────────────────────
-    { kind: 'halfCircle', x: 1340, y: 380, size: 175 },
-    { kind: 'halfCircle', x: 540,  y: 560, size: 125 },
-    { kind: 'halfCircle', x: 1010, y: 595, size: 90 },
+    // Pink half-rings (accents) ───────────────────────────────────────────────
+    { kind: 'halfRing', x: 1340, y: 380, size: 175, rotation: 0.4 },
+    { kind: 'halfRing', x: 540,  y: 560, size: 125, rotation: -0.9 },
+    { kind: 'halfRing', x: 1010, y: 595, size: 90,  rotation: 2.4 },
 
     // Green squares (mixed sizes) ─────────────────────────────────────────────
-    { kind: 'square',     x: 480,  y: 200, size: 110, rotation: 0.3 },
-    { kind: 'square',     x: 780,  y: 100, size: 75,  rotation: -0.5 },
-    { kind: 'square',     x: 1180, y: 100, size: 55 },
+    { kind: 'square',   x: 480,  y: 200, size: 110, rotation: 0.3 },
+    { kind: 'square',   x: 780,  y: 100, size: 75,  rotation: -0.5 },
+    { kind: 'square',   x: 1180, y: 100, size: 55 },
   ];
 
   // ── Matter loader ──────────────────────────────────────────────────────────
@@ -85,19 +85,18 @@
 
   // ── Body builders ──────────────────────────────────────────────────────────
 
-  // C-shape: open thick ring with a gap. Compound body of segment rectangles.
-  // Gap is ~108° opening to the upper-right by default.
-  function buildCShapeBody(Matter, x, y, size, options) {
+  // Ring: closed thick donut. Compound body of segment rectangles forming
+  // a complete 360° circle. Centroid sits at the geometric center (no offset).
+  const RING_THICKNESS_RATIO = 0.45;
+  function buildRingBody(Matter, x, y, size, options) {
     const radius = size;
-    const thickness = size * 0.45;
-    const startAngle = -Math.PI * 0.3;
-    const endAngle = Math.PI * 1.1;
-    const segments = 28;
-    const angleStep = (endAngle - startAngle) / segments;
+    const thickness = size * RING_THICKNESS_RATIO;
+    const segments = 32;
+    const angleStep = (2 * Math.PI) / segments;
     const segLen = 2 * radius * Math.sin(angleStep / 2) * 1.05;
     const parts = [];
     for (let i = 0; i < segments; i++) {
-      const a = startAngle + i * angleStep + angleStep / 2;
+      const a = i * angleStep + angleStep / 2;
       parts.push(
         Matter.Bodies.rectangle(
           x + Math.cos(a) * radius,
@@ -111,15 +110,32 @@
     return Matter.Body.create({ parts, ...options });
   }
 
-  // Half-circle: convex semicircle as a polygon body.
-  function buildHalfCircleBody(Matter, x, y, size, options) {
-    const segments = 24;
-    const verts = [];
-    for (let i = 0; i <= segments; i++) {
-      const a = (i / segments) * Math.PI;
-      verts.push({ x: Math.cos(a) * size, y: -Math.sin(a) * size });
+  // Half-ring: hollow ∪ shape, 180° opening. Compound body of segments along
+  // the bottom semicircle (angles 0 to π in Y-down). Centroid is offset
+  // toward the bulk of the arc — see HALF_RING_CY in renderer.
+  const HALF_RING_THICKNESS_RATIO = 0.45;
+  // Mean of sin(a) over [0, π] = 2/π ≈ 0.6366 — centroid offset on Y axis.
+  const HALF_RING_CENTROID_OFFSET = 2 / Math.PI;
+  function buildHalfRingBody(Matter, x, y, size, options) {
+    const radius = size;
+    const thickness = size * HALF_RING_THICKNESS_RATIO;
+    const segments = 18;
+    const angleStep = Math.PI / segments;
+    const segLen = 2 * radius * Math.sin(angleStep / 2) * 1.05;
+    const parts = [];
+    for (let i = 0; i < segments; i++) {
+      const a = i * angleStep + angleStep / 2;
+      parts.push(
+        Matter.Bodies.rectangle(
+          x + Math.cos(a) * radius,
+          y + Math.sin(a) * radius,
+          segLen,
+          thickness,
+          { angle: a + Math.PI / 2 }
+        )
+      );
     }
-    return Matter.Bodies.fromVertices(x, y, [verts], options);
+    return Matter.Body.create({ parts, ...options });
   }
 
   // Triangle: equilateral-ish pointing down (apex at bottom).
@@ -158,34 +174,42 @@
   }
 
   const BUILDERS = {
-    cShape:     buildCShapeBody,
-    triangle:   buildTriangleBody,
-    chevron:    buildChevronBody,
-    halfCircle: buildHalfCircleBody,
-    square:     buildSquareBody,
+    ring:     buildRingBody,
+    triangle: buildTriangleBody,
+    chevron:  buildChevronBody,
+    halfRing: buildHalfRingBody,
+    square:   buildSquareBody,
   };
 
   // ── Renderers ──────────────────────────────────────────────────────────────
   // Each renderer draws in the body's local frame (origin = body.position,
   // already rotated to body.angle by the caller).
 
-  function drawCShape(ctx, shape) {
+  // Closed donut: outer circle minus inner circle. Centroid = arc center.
+  function drawRing(ctx, shape) {
     const r = shape.size * shape._scale;
-    const t = r * 0.45;
+    const t = r * RING_THICKNESS_RATIO;
     const outer = r + t / 2;
     const inner = r - t / 2;
     ctx.beginPath();
-    ctx.arc(0, 0, outer, -Math.PI * 0.3, Math.PI * 1.1, false);
-    ctx.arc(0, 0, inner, Math.PI * 1.1, -Math.PI * 0.3, true);
+    ctx.arc(0, 0, outer, 0, 2 * Math.PI, false);
+    ctx.arc(0, 0, inner, 2 * Math.PI, 0, true);
     ctx.closePath();
     ctx.fill();
   }
 
-  function drawHalfCircle(ctx, shape) {
+  // Hollow half-ring (∪). Arc geometric center is offset from body centroid
+  // by HALF_RING_CENTROID_OFFSET in body-local Y so the visual aligns with
+  // the physics body. The two flat caps are formed implicitly via closePath.
+  function drawHalfRing(ctx, shape) {
     const r = shape.size * shape._scale;
+    const t = r * HALF_RING_THICKNESS_RATIO;
+    const outer = r + t / 2;
+    const inner = r - t / 2;
+    const cy = -HALF_RING_CENTROID_OFFSET * r;
     ctx.beginPath();
-    ctx.arc(0, 0, r, Math.PI, 2 * Math.PI);
-    ctx.lineTo(-r, 0);
+    ctx.arc(0, cy, outer, 0, Math.PI, false);
+    ctx.arc(0, cy, inner, Math.PI, 0, true);
     ctx.closePath();
     ctx.fill();
   }
@@ -233,11 +257,11 @@
   }
 
   const RENDERERS = {
-    cShape:     drawCShape,
-    triangle:   drawTriangle,
-    chevron:    drawChevron,
-    halfCircle: drawHalfCircle,
-    square:     drawSquare,
+    ring:     drawRing,
+    triangle: drawTriangle,
+    chevron:  drawChevron,
+    halfRing: drawHalfRing,
+    square:   drawSquare,
   };
 
   // ── Custom Element ─────────────────────────────────────────────────────────
