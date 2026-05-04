@@ -4,6 +4,9 @@
  * Draggable physics shapes for the Gemskorn hero section.
  * Built on Matter.js (loaded dynamically from jsDelivr).
  *
+ * Brand-locked: each shape kind has a fixed color baked in (BRAND_SHAPES below).
+ * The SHAPES array specifies only kind + position + size — colors cannot be mixed.
+ *
  * Usage:
  *   <gemskorn-physics></gemskorn-physics>
  *
@@ -11,56 +14,57 @@
  *   bg-color="#1A1F3A"   — section background color
  *   gravity="1"          — gravity strength (0 = floating)
  *   debug                — show physics body outlines (debug mode)
- *
- * Tune the brand visuals in the COLORS and SHAPES constants below.
  */
 (function () {
   'use strict';
 
   const MATTER_CDN = 'https://cdn.jsdelivr.net/npm/matter-js@0.19.0/build/matter.min.js';
 
-  // ── Brand palette ──────────────────────────────────────────────────────────
-  const COLORS = {
-    bg: '#1A1F3A',
-    yellow: '#F2B632',
-    green: '#3FAB6B',
-    coral: '#F85B5B',
-    pink: '#CC2A7E',
-    blue: '#3D55D7',
-    white: '#FFFFFF',
+  // ── Brand colors (locked to shape kinds) ───────────────────────────────────
+  // If Gemskorn provides exact brand hex values, swap them here.
+  const BG_COLOR = '#22213a';
+
+  const BRAND_SHAPES = {
+    cShape:     { color: '#EE4D5A' }, // Coral — open ring (the `g`/`o` element)
+    triangle:   { color: '#F2B632' }, // Yellow — accent triangle
+    chevron:    { color: '#3047C7' }, // Blue — `>` arrow
+    halfCircle: { color: '#C8197A' }, // Pink — half-disc
+    square:     { color: '#2BA66E' }, // Green — solid square
   };
 
   // Reference width — shapes are defined at this width and scale proportionally.
   const REF_WIDTH = 1440;
   const REF_HEIGHT = 720;
 
-  // ── Shape definitions ──────────────────────────────────────────────────────
-  // Coordinates are in PIXELS at REF_WIDTH × REF_HEIGHT (origin = top-left).
-  // Shapes will scale + reposition to fit the actual section size.
-  //
-  // Available types:
-  //   { type: 'circle',     color, x, y, radius }
-  //   { type: 'halfCircle', color, x, y, radius, rotation? }
-  //   { type: 'cShape',     color, x, y, radius, thickness, startAngle, endAngle, rotation? }
-  //   { type: 'polygon',    color, x, y, points: [[x,y],...], rotation? }
-  //   { type: 'lShape',     color, x, y, size, thickness, rotation? }
-  //   { type: 'rect',       color, x, y, width, height, rotation? }
+  // ── Shape instances ────────────────────────────────────────────────────────
+  // Each entry: { kind, x, y, size, rotation? }
+  // Color is auto-applied from BRAND_SHAPES — cannot be overridden per instance.
+  // Multiple instances per kind are encouraged; just vary size + position.
   const SHAPES = [
-    // ── LEFT CLUSTER ────────────────────────────────────────────────────────
-    { type: 'circle',     color: COLORS.yellow, x: 220,  y: 350, radius: 130 },
-    { type: 'cShape',     color: COLORS.green,  x: 90,   y: 540, radius: 110, thickness: 55, startAngle: -Math.PI * 0.3, endAngle: Math.PI * 1.1, rotation: 0.1 },
-    { type: 'polygon',    color: COLORS.coral,  x: 380,  y: 520, points: [[-70,-50],[80,-30],[90,40],[-30,55],[-80,15]], rotation: -0.25 },
+    // Coral C-shapes (primary anchors) ────────────────────────────────────────
+    { kind: 'cShape',     x: 220,  y: 350, size: 130, rotation: 0.1 },
+    { kind: 'cShape',     x: 1180, y: 580, size: 95,  rotation: -0.4 },
+    { kind: 'cShape',     x: 700,  y: 540, size: 80,  rotation: 1.2 },
 
-    // ── MID CLUSTER ─────────────────────────────────────────────────────────
-    { type: 'circle',     color: COLORS.pink,   x: 540,  y: 560, radius: 80 },
-    { type: 'cShape',     color: COLORS.blue,   x: 700,  y: 540, radius: 95, thickness: 50, startAngle: Math.PI * 0.25, endAngle: Math.PI * 1.65, rotation: 0 },
-    { type: 'lShape',     color: COLORS.yellow, x: 870,  y: 560, size: 110, thickness: 50, rotation: 0.4 },
-    { type: 'circle',     color: COLORS.green,  x: 1010, y: 595, radius: 38 },
+    // Yellow triangles (accents) ──────────────────────────────────────────────
+    { kind: 'triangle',   x: 380,  y: 100, size: 60 },
+    { kind: 'triangle',   x: 940,  y: 80,  size: 45 },
+    { kind: 'triangle',   x: 1370, y: 150, size: 75 },
 
-    // ── RIGHT CLUSTER ───────────────────────────────────────────────────────
-    { type: 'halfCircle', color: COLORS.coral,  x: 1180, y: 320, radius: 165, rotation: -2.0 },
-    { type: 'circle',     color: COLORS.blue,   x: 1240, y: 530, radius: 130 },
-    { type: 'polygon',    color: COLORS.pink,   x: 1370, y: 600, points: [[-35,-30],[40,-20],[35,35],[-30,40]], rotation: 0.2 },
+    // Blue chevrons (secondary visual) ────────────────────────────────────────
+    { kind: 'chevron',    x: 90,   y: 540, size: 110 },
+    { kind: 'chevron',    x: 870,  y: 580, size: 130 },
+    { kind: 'chevron',    x: 1280, y: 380, size: 85 },
+
+    // Pink half-circles (accents) ─────────────────────────────────────────────
+    { kind: 'halfCircle', x: 540,  y: 560, size: 80 },
+    { kind: 'halfCircle', x: 1010, y: 595, size: 100 },
+    { kind: 'halfCircle', x: 1240, y: 530, size: 130 },
+
+    // Green squares (small accents) ───────────────────────────────────────────
+    { kind: 'square',     x: 320,  y: 60,  size: 65, rotation: 0.3 },
+    { kind: 'square',     x: 700,  y: 80,  size: 50, rotation: -0.5 },
+    { kind: 'square',     x: 1100, y: 100, size: 75 },
   ];
 
   // ── Matter loader ──────────────────────────────────────────────────────────
@@ -80,53 +84,102 @@
   }
 
   // ── Body builders ──────────────────────────────────────────────────────────
-  // Convex semicircle as a polygon body.
-  function buildHalfCircleVerts(radius, segments) {
-    const verts = [];
-    for (let i = 0; i <= segments; i++) {
-      const a = (i / segments) * Math.PI;
-      verts.push({ x: Math.cos(a) * radius, y: -Math.sin(a) * radius });
-    }
-    return verts;
-  }
 
-  // Concave C-shape as a compound body of small rectangles along an arc.
-  function buildCShapeBody(Matter, x, y, radius, thickness, startAngle, endAngle, options) {
+  // C-shape: open thick ring with a gap. Compound body of segment rectangles.
+  // Gap is ~108° opening to the upper-right by default.
+  function buildCShapeBody(Matter, x, y, size, options) {
+    const radius = size;
+    const thickness = size * 0.45;
+    const startAngle = -Math.PI * 0.3;
+    const endAngle = Math.PI * 1.1;
     const segments = 28;
     const angleStep = (endAngle - startAngle) / segments;
     const segLen = 2 * radius * Math.sin(angleStep / 2) * 1.05;
     const parts = [];
     for (let i = 0; i < segments; i++) {
       const a = startAngle + i * angleStep + angleStep / 2;
-      const cx = x + Math.cos(a) * radius;
-      const cy = y + Math.sin(a) * radius;
       parts.push(
-        Matter.Bodies.rectangle(cx, cy, segLen, thickness, {
-          angle: a + Math.PI / 2,
-        })
+        Matter.Bodies.rectangle(
+          x + Math.cos(a) * radius,
+          y + Math.sin(a) * radius,
+          segLen,
+          thickness,
+          { angle: a + Math.PI / 2 }
+        )
       );
     }
     return Matter.Body.create({ parts, ...options });
   }
 
-  // L-shape as compound body of two rectangles.
-  function buildLShapeBody(Matter, x, y, size, thickness, options) {
-    const half = size / 2;
-    const horiz = Matter.Bodies.rectangle(x, y - half + thickness / 2, size, thickness);
-    const vert = Matter.Bodies.rectangle(x - half + thickness / 2, y, thickness, size);
-    return Matter.Body.create({ parts: [horiz, vert], ...options });
+  // Half-circle: convex semicircle as a polygon body.
+  function buildHalfCircleBody(Matter, x, y, size, options) {
+    const segments = 24;
+    const verts = [];
+    for (let i = 0; i <= segments; i++) {
+      const a = (i / segments) * Math.PI;
+      verts.push({ x: Math.cos(a) * size, y: -Math.sin(a) * size });
+    }
+    return Matter.Bodies.fromVertices(x, y, [verts], options);
   }
 
+  // Triangle: equilateral-ish pointing down (apex at bottom).
+  // Vertices already centered on centroid.
+  function buildTriangleBody(Matter, x, y, size, options) {
+    const verts = [
+      { x: -size,        y: -size * 0.467 },
+      { x:  size,        y: -size * 0.467 },
+      { x:  0,           y:  size * 0.933 },
+    ];
+    return Matter.Bodies.fromVertices(x, y, [verts], options);
+  }
+
+  // Chevron: `>` arrow pointing right. Compound body of two rectangle arms
+  // meeting at a tip. Body centroid lands at (x, y); tip is offset right.
+  function buildChevronBody(Matter, x, y, size, options) {
+    const halfAngle = Math.PI / 6; // 30°
+    const armLen = size;
+    const thickness = size * 0.32;
+    const sinA = Math.sin(halfAngle);
+    const top = Matter.Bodies.rectangle(
+      x, y - sinA * armLen / 2, armLen, thickness, { angle: halfAngle }
+    );
+    const bot = Matter.Bodies.rectangle(
+      x, y + sinA * armLen / 2, armLen, thickness, { angle: -halfAngle }
+    );
+    return Matter.Body.create({ parts: [top, bot], ...options });
+  }
+
+  // Square: trivial.
+  function buildSquareBody(Matter, x, y, size, options) {
+    return Matter.Bodies.rectangle(x, y, size, size, options);
+  }
+
+  const BUILDERS = {
+    cShape:     buildCShapeBody,
+    triangle:   buildTriangleBody,
+    chevron:    buildChevronBody,
+    halfCircle: buildHalfCircleBody,
+    square:     buildSquareBody,
+  };
+
   // ── Renderers ──────────────────────────────────────────────────────────────
-  // Each renderer draws in the body's local frame (origin = body.position, rotated to body.angle).
-  function drawCircle(ctx, shape) {
+  // Each renderer draws in the body's local frame (origin = body.position,
+  // already rotated to body.angle by the caller).
+
+  function drawCShape(ctx, shape) {
+    const r = shape.size * shape._scale;
+    const t = r * 0.45;
+    const outer = r + t / 2;
+    const inner = r - t / 2;
     ctx.beginPath();
-    ctx.arc(0, 0, shape.radius * shape._scale, 0, Math.PI * 2);
+    ctx.arc(0, 0, outer, -Math.PI * 0.3, Math.PI * 1.1, false);
+    ctx.arc(0, 0, inner, Math.PI * 1.1, -Math.PI * 0.3, true);
+    ctx.closePath();
     ctx.fill();
   }
 
   function drawHalfCircle(ctx, shape) {
-    const r = shape.radius * shape._scale;
+    const r = shape.size * shape._scale;
     ctx.beginPath();
     ctx.arc(0, 0, r, Math.PI, 2 * Math.PI);
     ctx.lineTo(-r, 0);
@@ -134,52 +187,49 @@
     ctx.fill();
   }
 
-  function drawCShape(ctx, shape) {
-    const r = shape.radius * shape._scale;
-    const t = shape.thickness * shape._scale;
-    const outer = r + t / 2;
-    const inner = r - t / 2;
-    ctx.beginPath();
-    ctx.arc(0, 0, outer, shape.startAngle, shape.endAngle, false);
-    ctx.arc(0, 0, inner, shape.endAngle, shape.startAngle, true);
-    ctx.closePath();
-    ctx.fill();
-  }
-
-  function drawPolygon(ctx, shape) {
-    const pts = shape.points;
-    ctx.beginPath();
-    ctx.moveTo(pts[0][0] * shape._scale, pts[0][1] * shape._scale);
-    for (let i = 1; i < pts.length; i++) {
-      ctx.lineTo(pts[i][0] * shape._scale, pts[i][1] * shape._scale);
-    }
-    ctx.closePath();
-    ctx.fill();
-  }
-
-  function drawLShape(ctx, shape) {
+  function drawTriangle(ctx, shape) {
     const s = shape.size * shape._scale;
-    const t = shape.thickness * shape._scale;
-    const half = s / 2;
-    // Horizontal bar (top)
-    ctx.fillRect(-half, -half, s, t);
-    // Vertical bar (left)
-    ctx.fillRect(-half, -half, t, s);
+    ctx.beginPath();
+    ctx.moveTo(-s,  -s * 0.467);
+    ctx.lineTo( s,  -s * 0.467);
+    ctx.lineTo( 0,   s * 0.933);
+    ctx.closePath();
+    ctx.fill();
   }
 
-  function drawRect(ctx, shape) {
-    const w = shape.width * shape._scale;
-    const h = shape.height * shape._scale;
-    ctx.fillRect(-w / 2, -h / 2, w, h);
+  function drawChevron(ctx, shape) {
+    const size = shape.size * shape._scale;
+    const halfAngle = Math.PI / 6;
+    const armLen = size;
+    const thickness = size * 0.32;
+    const sinA = Math.sin(halfAngle);
+
+    // Top arm
+    ctx.save();
+    ctx.translate(0, -sinA * armLen / 2);
+    ctx.rotate(halfAngle);
+    ctx.fillRect(-armLen / 2, -thickness / 2, armLen, thickness);
+    ctx.restore();
+
+    // Bottom arm
+    ctx.save();
+    ctx.translate(0,  sinA * armLen / 2);
+    ctx.rotate(-halfAngle);
+    ctx.fillRect(-armLen / 2, -thickness / 2, armLen, thickness);
+    ctx.restore();
+  }
+
+  function drawSquare(ctx, shape) {
+    const s = shape.size * shape._scale;
+    ctx.fillRect(-s / 2, -s / 2, s, s);
   }
 
   const RENDERERS = {
-    circle: drawCircle,
+    cShape:     drawCShape,
+    triangle:   drawTriangle,
+    chevron:    drawChevron,
     halfCircle: drawHalfCircle,
-    cShape: drawCShape,
-    polygon: drawPolygon,
-    lShape: drawLShape,
-    rect: drawRect,
+    square:     drawSquare,
   };
 
   // ── Custom Element ─────────────────────────────────────────────────────────
@@ -189,10 +239,13 @@
       this._shapes = [];
       this._engine = null;
       this._world = null;
-      this._mouseConstraint = null;
+      this._cursorBody = null;
+      this._cursorRadius = 30;
       this._walls = [];
       this._raf = null;
       this._resizeObserver = null;
+      this._intersectionObserver = null;
+      this._started = false;
       this._canvas = null;
       this._ctx = null;
       this._dpr = window.devicePixelRatio || 1;
@@ -203,17 +256,16 @@
     }
 
     async connectedCallback() {
-      // Container styles
       this.style.display = 'block';
       this.style.position = 'relative';
       this.style.width = '100%';
       this.style.height = '100%';
       this.style.minHeight = '480px';
       this.style.overflow = 'hidden';
-      this.style.backgroundColor = this.getAttribute('bg-color') || COLORS.bg;
-      this.style.touchAction = 'none'; // Prevent scroll while dragging on mobile
+      this.style.backgroundColor = this.getAttribute('bg-color') || BG_COLOR;
+      // Hover-only interaction — let the browser handle scroll naturally.
+      this.style.touchAction = 'auto';
 
-      // Canvas
       this._canvas = document.createElement('canvas');
       this._canvas.style.position = 'absolute';
       this._canvas.style.inset = '0';
@@ -226,10 +278,10 @@
       try {
         const Matter = await loadMatter();
         if (this._destroyed) return;
-        this._initPhysics(Matter);
+        this._setupEngine(Matter);
         this._initInput(Matter);
         this._initResize();
-        this._raf = requestAnimationFrame(this._tick.bind(this));
+        this._initVisibilityTrigger();
       } catch (err) {
         console.error('[gemskorn-physics]', err);
       }
@@ -239,6 +291,7 @@
       this._destroyed = true;
       if (this._raf) cancelAnimationFrame(this._raf);
       if (this._resizeObserver) this._resizeObserver.disconnect();
+      if (this._intersectionObserver) this._intersectionObserver.disconnect();
       if (this._engine && window.Matter) {
         window.Matter.Engine.clear(this._engine);
       }
@@ -246,16 +299,38 @@
       this._walls = [];
     }
 
-    _initPhysics(Matter) {
+    _setupEngine(Matter) {
       this._Matter = Matter;
       this._engine = Matter.Engine.create();
       const gravity = parseFloat(this.getAttribute('gravity'));
       this._engine.gravity.y = isNaN(gravity) ? 1 : gravity;
       this._world = this._engine.world;
-
       this._measure();
+    }
+
+    // Wait for the section to enter the viewport before spawning shapes.
+    // Fires exactly once — after that, shapes stay where physics leaves them.
+    _initVisibilityTrigger() {
+      this._intersectionObserver = new IntersectionObserver(
+        (entries) => {
+          for (const entry of entries) {
+            if (entry.isIntersecting && !this._started) {
+              this._started = true;
+              this._start();
+              this._intersectionObserver.disconnect();
+              this._intersectionObserver = null;
+            }
+          }
+        },
+        { threshold: 0.15 }
+      );
+      this._intersectionObserver.observe(this);
+    }
+
+    _start() {
       this._buildShapes();
       this._buildWalls();
+      this._raf = requestAnimationFrame(this._tick.bind(this));
     }
 
     _measure() {
@@ -263,8 +338,6 @@
       this._width = Math.max(1, rect.width);
       this._height = Math.max(1, rect.height);
       this._scale = this._width / REF_WIDTH;
-
-      // Resize canvas with DPR for crisp rendering
       this._canvas.width = this._width * this._dpr;
       this._canvas.height = this._height * this._dpr;
       this._ctx.setTransform(this._dpr, 0, 0, this._dpr, 0, 0);
@@ -272,9 +345,6 @@
 
     _buildShapes() {
       const Matter = this._Matter;
-      // Map ref-coordinates to actual canvas coordinates.
-      // Ref is 1440×720; we keep horizontal scale = width/REF_WIDTH and
-      // anchor y at the bottom, so shapes "rest" at the section floor.
       const sx = this._scale;
       const sy = this._scale;
       const yOffset = this._height - REF_HEIGHT * sy;
@@ -287,62 +357,25 @@
       };
 
       SHAPES.forEach((def) => {
-        const x = def.x * sx;
-        const y = def.y * sy + yOffset;
-        let body;
-
-        switch (def.type) {
-          case 'circle':
-            body = Matter.Bodies.circle(x, y, def.radius * sx, shapeOpts);
-            break;
-
-          case 'halfCircle': {
-            const verts = buildHalfCircleVerts(def.radius * sx, 24);
-            body = Matter.Bodies.fromVertices(x, y, [verts], shapeOpts);
-            if (def.rotation) Matter.Body.setAngle(body, def.rotation);
-            break;
-          }
-
-          case 'cShape':
-            body = buildCShapeBody(
-              Matter,
-              x,
-              y,
-              def.radius * sx,
-              def.thickness * sx,
-              def.startAngle,
-              def.endAngle,
-              shapeOpts
-            );
-            if (def.rotation) Matter.Body.setAngle(body, def.rotation);
-            break;
-
-          case 'polygon': {
-            const verts = def.points.map(([px, py]) => ({ x: px * sx, y: py * sy }));
-            body = Matter.Bodies.fromVertices(x, y, [verts], shapeOpts);
-            if (def.rotation) Matter.Body.setAngle(body, def.rotation);
-            break;
-          }
-
-          case 'lShape':
-            body = buildLShapeBody(Matter, x, y, def.size * sx, def.thickness * sx, shapeOpts);
-            if (def.rotation) Matter.Body.setAngle(body, def.rotation);
-            break;
-
-          case 'rect':
-            body = Matter.Bodies.rectangle(x, y, def.width * sx, def.height * sy, shapeOpts);
-            if (def.rotation) Matter.Body.setAngle(body, def.rotation);
-            break;
-
-          default:
-            console.warn('[gemskorn-physics] Unknown shape type:', def.type);
-            return;
+        const builder = BUILDERS[def.kind];
+        const brand = BRAND_SHAPES[def.kind];
+        if (!builder || !brand) {
+          console.warn('[gemskorn-physics] Unknown shape kind:', def.kind);
+          return;
         }
 
+        const x = def.x * sx;
+        const y = def.y * sy + yOffset;
+        const size = def.size * sx;
+        const body = builder(Matter, x, y, size, shapeOpts);
         if (!body) return;
 
+        if (def.rotation) Matter.Body.setAngle(body, def.rotation);
+
         const shape = {
-          ...def,
+          kind: def.kind,
+          color: brand.color, // Locked, never per-instance
+          size: def.size,
           body,
           _scale: sx,
         };
@@ -360,38 +393,51 @@
       const Matter = this._Matter;
       const w = this._width;
       const h = this._height;
-      const t = 100; // wall thickness
+      const t = 100;
       const opts = { isStatic: true, friction: 0.1, restitution: 0.2 };
 
       this._walls = [
-        Matter.Bodies.rectangle(w / 2, h + t / 2, w + t * 2, t, opts), // floor
-        Matter.Bodies.rectangle(-t / 2, h / 2, t, h * 2, opts), // left
-        Matter.Bodies.rectangle(w + t / 2, h / 2, t, h * 2, opts), // right
-        Matter.Bodies.rectangle(w / 2, -h - t / 2, w + t * 2, t, opts), // ceiling far above
+        Matter.Bodies.rectangle(w / 2, h + t / 2, w + t * 2, t, opts),
+        Matter.Bodies.rectangle(-t / 2, h / 2, t, h * 2, opts),
+        Matter.Bodies.rectangle(w + t / 2, h / 2, t, h * 2, opts),
+        Matter.Bodies.rectangle(w / 2, -h - t / 2, w + t * 2, t, opts),
       ];
       Matter.Composite.add(this._world, this._walls);
     }
 
-    _initInput(Matter) {
-      const mouse = Matter.Mouse.create(this._canvas);
-      // Match canvas DPR so click positions land correctly.
-      mouse.pixelRatio = this._dpr;
+    // Cursor-as-body: invisible static circle that tracks the mouse.
+    // Matter handles collisions with it like any other body — shapes get
+    // pushed out of the cursor's path on hover, no click required.
+    _initInput() {
+      this._createCursorBody();
 
-      this._mouseConstraint = Matter.MouseConstraint.create(this._engine, {
-        mouse,
-        constraint: {
-          stiffness: 0.2,
-          damping: 0.1,
-          render: { visible: false },
-        },
-      });
-      Matter.Composite.add(this._world, this._mouseConstraint);
+      const updateCursor = (clientX, clientY) => {
+        if (!this._cursorBody) return;
+        const rect = this._canvas.getBoundingClientRect();
+        const x = clientX - rect.left;
+        const y = clientY - rect.top;
+        this._Matter.Body.setPosition(this._cursorBody, { x, y });
+      };
 
-      // Allow page scroll over the canvas — Matter binds wheel events that block scroll.
-      const passive = { passive: true };
-      this._canvas.removeEventListener('wheel', mouse.mousewheel);
-      this._canvas.removeEventListener('DOMMouseScroll', mouse.mousewheel);
-      this._canvas.addEventListener('wheel', () => {}, passive);
+      const parkCursor = () => {
+        if (!this._cursorBody) return;
+        // Park far offscreen so it doesn't push any shape.
+        this._Matter.Body.setPosition(this._cursorBody, { x: -99999, y: -99999 });
+      };
+
+      this._canvas.addEventListener('mousemove', (e) => updateCursor(e.clientX, e.clientY));
+      this._canvas.addEventListener('mouseleave', parkCursor);
+    }
+
+    _createCursorBody() {
+      // Scale cursor with section width — bigger on desktop, smaller on mobile.
+      // Min 20px to avoid tunneling through small shapes.
+      this._cursorRadius = Math.max(20, this._width * 0.025);
+      this._cursorBody = this._Matter.Bodies.circle(
+        -99999, -99999, this._cursorRadius,
+        { isStatic: true, label: 'cursor' }
+      );
+      this._Matter.Composite.add(this._world, this._cursorBody);
     }
 
     _initResize() {
@@ -402,20 +448,18 @@
       this._resizeObserver.observe(this);
     }
 
-    // Rebuild physics on size change (cheaper + cleaner than rescaling bodies).
     _rebuild() {
       const Matter = this._Matter;
-      // Clear bodies but keep engine
       Matter.Composite.clear(this._world, false, true);
       this._shapes = [];
       this._walls = [];
+      this._cursorBody = null;
       this._measure();
-      this._buildShapes();
-      this._buildWalls();
-      // Re-add mouse constraint
-      if (this._mouseConstraint) {
-        Matter.Composite.add(this._world, this._mouseConstraint);
+      if (this._started) {
+        this._buildShapes();
+        this._buildWalls();
       }
+      this._createCursorBody();
     }
 
     _tick() {
@@ -436,7 +480,7 @@
         ctx.translate(shape.body.position.x, shape.body.position.y);
         ctx.rotate(shape.body.angle);
         ctx.fillStyle = shape.color;
-        const renderer = RENDERERS[shape.type];
+        const renderer = RENDERERS[shape.kind];
         if (renderer) renderer(ctx, shape);
         ctx.restore();
       });
