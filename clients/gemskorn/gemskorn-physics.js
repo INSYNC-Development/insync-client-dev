@@ -22,7 +22,7 @@
 
   // ── Brand colors (locked to shape kinds) ───────────────────────────────────
   // If Gemskorn provides exact brand hex values, swap them here.
-  const BG_COLOR = '#22213a';
+  const BG_COLOR = '#22213A';
 
   const BRAND_SHAPES = {
     cShape:     { color: '#EE4D5A' }, // Coral — open ring (the `g`/`o` element)
@@ -133,12 +133,15 @@
     return Matter.Bodies.fromVertices(x, y, [verts], options);
   }
 
-  // Chevron: `>` arrow pointing right. Compound body of two rectangle arms
-  // meeting at a tip. Body centroid lands at (x, y); tip is offset right.
+  // Chevron: `>` arrow pointing right at a 90° opening (right angle).
+  // Compound body of two rectangle arms meeting at a tip.
+  // Body centroid lands at (x, y); tip is offset right.
+  const CHEVRON_HALF_ANGLE = Math.PI / 4; // 45° → arms meet at 90°
+  const CHEVRON_THICKNESS_RATIO = 0.30;
   function buildChevronBody(Matter, x, y, size, options) {
-    const halfAngle = Math.PI / 6; // 30°
+    const halfAngle = CHEVRON_HALF_ANGLE;
     const armLen = size;
-    const thickness = size * 0.32;
+    const thickness = size * CHEVRON_THICKNESS_RATIO;
     const sinA = Math.sin(halfAngle);
     const top = Matter.Bodies.rectangle(
       x, y - sinA * armLen / 2, armLen, thickness, { angle: halfAngle }
@@ -199,9 +202,9 @@
 
   function drawChevron(ctx, shape) {
     const size = shape.size * shape._scale;
-    const halfAngle = Math.PI / 6;
+    const halfAngle = CHEVRON_HALF_ANGLE;
     const armLen = size;
-    const thickness = size * 0.32;
+    const thickness = size * CHEVRON_THICKNESS_RATIO;
     const sinA = Math.sin(halfAngle);
 
     // Top arm
@@ -301,7 +304,12 @@
 
     _setupEngine(Matter) {
       this._Matter = Matter;
-      this._engine = Matter.Engine.create();
+      // Higher iterations = stable collisions at high cursor velocities.
+      this._engine = Matter.Engine.create({
+        velocityIterations: 8,
+        positionIterations: 8,
+        constraintIterations: 4,
+      });
       const gravity = parseFloat(this.getAttribute('gravity'));
       this._engine.gravity.y = isNaN(gravity) ? 1 : gravity;
       this._world = this._engine.world;
@@ -350,9 +358,9 @@
       const yOffset = this._height - REF_HEIGHT * sy;
 
       const shapeOpts = {
-        restitution: 0.35,
+        restitution: 0.7,    // Bouncier — shapes ricochet on impact
         friction: 0.05,
-        frictionAir: 0.005,
+        frictionAir: 0.001,  // Lower drag — shapes coast longer after a hit
         density: 0.001,
       };
 
@@ -406,23 +414,43 @@
     }
 
     // Cursor-as-body: invisible static circle that tracks the mouse.
-    // Matter handles collisions with it like any other body — shapes get
-    // pushed out of the cursor's path on hover, no click required.
+    // We also track mouse velocity and write it to the body so collisions
+    // impart real impulse to shapes — fast sweeps actually launch them.
     _initInput() {
       this._createCursorBody();
+
+      let lastX = null;
+      let lastY = null;
+      let lastT = null;
 
       const updateCursor = (clientX, clientY) => {
         if (!this._cursorBody) return;
         const rect = this._canvas.getBoundingClientRect();
         const x = clientX - rect.left;
         const y = clientY - rect.top;
+        const now = performance.now();
+
+        // Compute mouse velocity in px/ms; scale to a sensible Matter velocity.
+        if (lastT !== null) {
+          const dt = now - lastT;
+          if (dt > 0 && dt < 100) {
+            // Scale factor tuned so quick flicks throw shapes; gentle moves nudge.
+            const scale = 0.35;
+            const vx = ((x - lastX) / dt) * 16 * scale;
+            const vy = ((y - lastY) / dt) * 16 * scale;
+            this._Matter.Body.setVelocity(this._cursorBody, { x: vx, y: vy });
+          }
+        }
+        lastX = x; lastY = y; lastT = now;
+
         this._Matter.Body.setPosition(this._cursorBody, { x, y });
       };
 
       const parkCursor = () => {
         if (!this._cursorBody) return;
-        // Park far offscreen so it doesn't push any shape.
+        this._Matter.Body.setVelocity(this._cursorBody, { x: 0, y: 0 });
         this._Matter.Body.setPosition(this._cursorBody, { x: -99999, y: -99999 });
+        lastX = lastY = lastT = null;
       };
 
       this._canvas.addEventListener('mousemove', (e) => updateCursor(e.clientX, e.clientY));
@@ -430,12 +458,12 @@
     }
 
     _createCursorBody() {
-      // Scale cursor with section width — bigger on desktop, smaller on mobile.
-      // Min 20px to avoid tunneling through small shapes.
-      this._cursorRadius = Math.max(20, this._width * 0.025);
+      // 4% of section width → ~58px on a 1440 hero. Big enough to feel solid,
+      // small enough not to dominate the canvas.
+      this._cursorRadius = Math.max(30, this._width * 0.04);
       this._cursorBody = this._Matter.Bodies.circle(
         -99999, -99999, this._cursorRadius,
-        { isStatic: true, label: 'cursor' }
+        { isStatic: true, label: 'cursor', restitution: 0.9 }
       );
       this._Matter.Composite.add(this._world, this._cursorBody);
     }
@@ -464,7 +492,11 @@
 
     _tick() {
       if (this._destroyed) return;
-      this._Matter.Engine.update(this._engine, 1000 / 60);
+      // Sub-step physics at ~120Hz while rendering at 60Hz —
+      // smoother visuals + better collision quality at high speeds.
+      const halfStep = 1000 / 120;
+      this._Matter.Engine.update(this._engine, halfStep);
+      this._Matter.Engine.update(this._engine, halfStep);
       this._render();
       this._raf = requestAnimationFrame(this._tick.bind(this));
     }
