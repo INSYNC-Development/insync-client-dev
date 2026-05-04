@@ -193,6 +193,8 @@
       this._walls = [];
       this._raf = null;
       this._resizeObserver = null;
+      this._intersectionObserver = null;
+      this._started = false;
       this._canvas = null;
       this._ctx = null;
       this._dpr = window.devicePixelRatio || 1;
@@ -226,10 +228,10 @@
       try {
         const Matter = await loadMatter();
         if (this._destroyed) return;
-        this._initPhysics(Matter);
+        this._setupEngine(Matter);
         this._initInput(Matter);
         this._initResize();
-        this._raf = requestAnimationFrame(this._tick.bind(this));
+        this._initVisibilityTrigger();
       } catch (err) {
         console.error('[gemskorn-physics]', err);
       }
@@ -239,6 +241,7 @@
       this._destroyed = true;
       if (this._raf) cancelAnimationFrame(this._raf);
       if (this._resizeObserver) this._resizeObserver.disconnect();
+      if (this._intersectionObserver) this._intersectionObserver.disconnect();
       if (this._engine && window.Matter) {
         window.Matter.Engine.clear(this._engine);
       }
@@ -246,16 +249,38 @@
       this._walls = [];
     }
 
-    _initPhysics(Matter) {
+    _setupEngine(Matter) {
       this._Matter = Matter;
       this._engine = Matter.Engine.create();
       const gravity = parseFloat(this.getAttribute('gravity'));
       this._engine.gravity.y = isNaN(gravity) ? 1 : gravity;
       this._world = this._engine.world;
-
       this._measure();
+    }
+
+    // Wait for the section to enter the viewport before spawning shapes.
+    // Fires exactly once — after that, shapes stay where physics leaves them.
+    _initVisibilityTrigger() {
+      this._intersectionObserver = new IntersectionObserver(
+        (entries) => {
+          for (const entry of entries) {
+            if (entry.isIntersecting && !this._started) {
+              this._started = true;
+              this._start();
+              this._intersectionObserver.disconnect();
+              this._intersectionObserver = null;
+            }
+          }
+        },
+        { threshold: 0.15 }
+      );
+      this._intersectionObserver.observe(this);
+    }
+
+    _start() {
       this._buildShapes();
       this._buildWalls();
+      this._raf = requestAnimationFrame(this._tick.bind(this));
     }
 
     _measure() {
@@ -403,16 +428,17 @@
     }
 
     // Rebuild physics on size change (cheaper + cleaner than rescaling bodies).
+    // Skip shape/wall rebuild if we haven't started yet — wait for visibility.
     _rebuild() {
       const Matter = this._Matter;
-      // Clear bodies but keep engine
       Matter.Composite.clear(this._world, false, true);
       this._shapes = [];
       this._walls = [];
       this._measure();
-      this._buildShapes();
-      this._buildWalls();
-      // Re-add mouse constraint
+      if (this._started) {
+        this._buildShapes();
+        this._buildWalls();
+      }
       if (this._mouseConstraint) {
         Matter.Composite.add(this._world, this._mouseConstraint);
       }
