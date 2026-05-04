@@ -21,7 +21,7 @@
 
   // ── Brand palette ──────────────────────────────────────────────────────────
   const COLORS = {
-    bg: '#1A1F3A',
+    bg: '#22213a',
     yellow: '#F2B632',
     green: '#3FAB6B',
     coral: '#F85B5B',
