@@ -42,29 +42,29 @@
   // Multiple instances per kind are encouraged; just vary size + position.
   const SHAPES = [
     // Coral C-shapes (primary anchors) ────────────────────────────────────────
-    { kind: 'cShape',     x: 220,  y: 350, size: 130, rotation: 0.1 },
-    { kind: 'cShape',     x: 1180, y: 580, size: 95,  rotation: -0.4 },
-    { kind: 'cShape',     x: 700,  y: 540, size: 80,  rotation: 1.2 },
+    { kind: 'cShape',     x: 220,  y: 350, size: 175, rotation: 0.1 },
+    { kind: 'cShape',     x: 720,  y: 540, size: 130, rotation: 1.2 },
+    { kind: 'cShape',     x: 1240, y: 580, size: 100, rotation: -0.4 },
 
     // Yellow triangles (accents) ──────────────────────────────────────────────
-    { kind: 'triangle',   x: 380,  y: 100, size: 60 },
-    { kind: 'triangle',   x: 940,  y: 80,  size: 45 },
-    { kind: 'triangle',   x: 1370, y: 150, size: 75 },
+    { kind: 'triangle',   x: 360,  y: 100, size: 110 },
+    { kind: 'triangle',   x: 950,  y: 80,  size: 70 },
+    { kind: 'triangle',   x: 1370, y: 150, size: 50 },
 
     // Blue chevrons (secondary visual) ────────────────────────────────────────
-    { kind: 'chevron',    x: 90,   y: 540, size: 110 },
-    { kind: 'chevron',    x: 870,  y: 580, size: 130 },
-    { kind: 'chevron',    x: 1280, y: 380, size: 85 },
+    { kind: 'chevron',    x: 100,  y: 540, size: 165 },
+    { kind: 'chevron',    x: 870,  y: 580, size: 140 },
+    { kind: 'chevron',    x: 1100, y: 200, size: 95 },
 
     // Pink half-circles (accents) ─────────────────────────────────────────────
-    { kind: 'halfCircle', x: 540,  y: 560, size: 80 },
-    { kind: 'halfCircle', x: 1010, y: 595, size: 100 },
-    { kind: 'halfCircle', x: 1240, y: 530, size: 130 },
+    { kind: 'halfCircle', x: 1340, y: 380, size: 175 },
+    { kind: 'halfCircle', x: 540,  y: 560, size: 125 },
+    { kind: 'halfCircle', x: 1010, y: 595, size: 90 },
 
-    // Green squares (small accents) ───────────────────────────────────────────
-    { kind: 'square',     x: 320,  y: 60,  size: 65, rotation: 0.3 },
-    { kind: 'square',     x: 700,  y: 80,  size: 50, rotation: -0.5 },
-    { kind: 'square',     x: 1100, y: 100, size: 75 },
+    // Green squares (mixed sizes) ─────────────────────────────────────────────
+    { kind: 'square',     x: 480,  y: 200, size: 110, rotation: 0.3 },
+    { kind: 'square',     x: 780,  y: 100, size: 75,  rotation: -0.5 },
+    { kind: 'square',     x: 1180, y: 100, size: 55 },
   ];
 
   // ── Matter loader ──────────────────────────────────────────────────────────
@@ -200,26 +200,31 @@
     ctx.fill();
   }
 
+  // Render the chevron as a single 6-point concave polygon with a mitered
+  // outer tip and a clean V-notch inside. Math assumes 90° opening (45° each).
   function drawChevron(ctx, shape) {
-    const size = shape.size * shape._scale;
-    const halfAngle = CHEVRON_HALF_ANGLE;
-    const armLen = size;
-    const thickness = size * CHEVRON_THICKNESS_RATIO;
-    const sinA = Math.sin(halfAngle);
+    const L = shape.size * shape._scale;            // arm length (centerline)
+    const t = L * CHEVRON_THICKNESS_RATIO;          // thickness
+    const r = Math.SQRT1_2;                          // 1/√2
 
-    // Top arm
-    ctx.save();
-    ctx.translate(0, -sinA * armLen / 2);
-    ctx.rotate(halfAngle);
-    ctx.fillRect(-armLen / 2, -thickness / 2, armLen, thickness);
-    ctx.restore();
+    // Body centroid is at origin. Centerlines' apex is at (L*r/2, 0).
+    // Outer mitered tip extends past it by t*r; V-notch sits behind it by t*r.
+    const tipX   = L * r / 2 + t * r;
+    const notchX = L * r / 2 - t * r;
+    const farXo  = -L * r / 2 + t * r / 2;          // outer-far x
+    const farXi  = -L * r / 2 - t * r / 2;          // inner-far x
+    const farYo  =  L * r + t * r / 2;              // outer-far |y|
+    const farYi  =  L * r - t * r / 2;              // inner-far |y|
 
-    // Bottom arm
-    ctx.save();
-    ctx.translate(0,  sinA * armLen / 2);
-    ctx.rotate(-halfAngle);
-    ctx.fillRect(-armLen / 2, -thickness / 2, armLen, thickness);
-    ctx.restore();
+    ctx.beginPath();
+    ctx.moveTo(tipX,   0);          // 1. outer mitered tip
+    ctx.lineTo(farXo, -farYo);      // 2. top-outer far corner
+    ctx.lineTo(farXi, -farYi);      // 3. top-inner far corner
+    ctx.lineTo(notchX, 0);          // 4. V notch
+    ctx.lineTo(farXi,  farYi);      // 5. bot-inner far corner
+    ctx.lineTo(farXo,  farYo);      // 6. bot-outer far corner
+    ctx.closePath();
+    ctx.fill();
   }
 
   function drawSquare(ctx, shape) {
@@ -435,7 +440,7 @@
           const dt = now - lastT;
           if (dt > 0 && dt < 100) {
             // Scale factor tuned so quick flicks throw shapes; gentle moves nudge.
-            const scale = 0.35;
+            const scale = 0.2;
             const vx = ((x - lastX) / dt) * 16 * scale;
             const vy = ((y - lastY) / dt) * 16 * scale;
             this._Matter.Body.setVelocity(this._cursorBody, { x: vx, y: vy });
