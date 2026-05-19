@@ -1,0 +1,1073 @@
+<style>
+  :root {
+    --grid-breakout: [full-start] minmax(0, 1fr) [content-start]
+      repeat(var(--site--column-count), minmax(0, var(--site--column-width)))
+      [content-end] minmax(0, 1fr) [full-end];
+    --grid-breakout-single: [full-start] minmax(0, 1fr) [content-start]
+      minmax(0, calc(100% - var(--site--margin) * 2)) [content-end]
+      minmax(0, 1fr) [full-end];
+
+    --ease-default: cubic-bezier(0.65, 0.05, 0, 1);
+    --ease-cubic-custom: cubic-bezier(1, 0, 0, 1);
+    --duration-default: 0.75s;
+    --animation-default: var(--duration-default) var(--ease-default);
+    --swiper-theme-color: var(--swatch--brand-500);
+  }
+
+  ::-webkit-scrollbar {
+    display: none;
+  }
+
+  ::before,
+  ::after {
+    box-sizing: border-box;
+  }
+  .w-embed:before,
+  .w-embed:after,
+  .w-richtext:before,
+  .w-richtext:after {
+    content: unset;
+  }
+  html {
+    background-color: var(--_theme---background);
+  }
+  button {
+    background-color: unset;
+    padding: unset;
+    text-align: inherit;
+  }
+  button:not(:disabled) {
+    cursor: pointer;
+  }
+  video {
+    width: 100%;
+    object-fit: cover;
+  }
+  /* remove padding of empty element */
+  .wf-empty {
+    padding: 0;
+  }
+  svg {
+    max-width: 100%;
+  }
+  @media (prefers-color-scheme: light) {
+    option {
+      color: black;
+    }
+  }
+  img::selection {
+    background: transparent;
+  }
+  /* Typography */
+  body {
+    text-transform: var(--_text-style---text-transform);
+    font-smoothing: antialiased;
+    -webkit-font-smoothing: antialiased;
+  }
+  /* Clear Defaults */
+  a:not([class]) {
+    text-decoration: underline;
+  }
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6,
+  p,
+  blockquote,
+  label {
+    font-family: inherit;
+    font-size: inherit;
+    font-weight: inherit;
+    line-height: inherit;
+    letter-spacing: inherit;
+    text-transform: inherit;
+    text-wrap: inherit;
+    margin-top: 0;
+    margin-bottom: 0;
+  }
+  select:has(option[value=""]:checked) {
+    color: color-mix(in lab, currentcolor 60%, transparent);
+  }
+  /* Selection Color */
+  ::selection {
+    background-color: var(--_theme---selection--background);
+    color: var(--_theme---selection--text);
+  }
+  /* Margin Trim */
+  :is(.u-margin-trim, .u-rich-text)
+    > :not(
+      :not(.w-condition-invisible, .u-cover-absolute, .u-ignore-trim)
+        ~ :not(.w-condition-invisible, .u-cover-absolute, .u-ignore-trim)
+    ),
+  :is(.u-margin-trim, .u-rich-text)
+    > :not(
+      :not(.w-condition-invisible, .u-cover-absolute, .u-ignore-trim)
+        ~ :not(.w-condition-invisible, .u-cover-absolute, .u-ignore-trim)
+    ).u-display-contents
+    > :first-child {
+    margin-top: 0;
+  }
+  :is(.u-margin-trim, .u-rich-text)
+    > :not(
+      :has(~ :not(.w-condition-invisible, .u-cover-absolute, .u-ignore-trim))
+    ),
+  :is(.u-margin-trim, .u-rich-text)
+    > :not(
+      :has(~ :not(.w-condition-invisible, .u-cover-absolute, .u-ignore-trim))
+    ).u-display-contents
+    > :last-child {
+    margin-bottom: 0;
+  }
+  /* Line Height Trim 
+    :is(h1,h2,h3,h4,h5,h6,p):not(.u-text-trim-off,:has([class*="u-text-style-"]))::before,
+    [class*="u-text-style-"]:not(.u-text-trim-off,:has(h1,h2,h3,h4,h5,h6,p))::before {
+    content: "";
+    display: table;
+    margin-bottom: calc(-0.5lh + var(--_text-style---trim-top));
+    }
+    :is(h1,h2,h3,h4,h5,h6,p):not(.u-text-trim-off,:has([class*="u-text-style-"]))::after,
+    [class*="u-text-style-"]:not(.u-text-trim-off,:has(h1,h2,h3,h4,h5,h6,p))::after {
+    content: "";
+    display: table;
+    margin-bottom: calc(-0.5lh + var(--_text-style---trim-bottom));
+    }
+  
+    /* Rich Text Links */
+  .w-richtext a {
+    position: relative;
+    z-index: 4;
+  }
+  /* Line Clamp */
+  .u-line-clamp-1,
+  .u-line-clamp-2,
+  .u-line-clamp-3,
+  .u-line-clamp-4 {
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+  }
+  .u-line-clamp-2 {
+    -webkit-line-clamp: 2;
+  }
+  .u-line-clamp-3 {
+    -webkit-line-clamp: 3;
+  }
+  .u-line-clamp-4 {
+    -webkit-line-clamp: 4;
+  }
+  /* Child Contain */
+  .u-child-contain > * {
+    width: 100%;
+    max-width: inherit !important;
+    margin-inline: 0 !important;
+    margin-top: 0 !important;
+  }
+  /* Hide */
+  .u-hide-if-empty:empty,
+  .u-hide-if-empty:not(:has(> :not(.w-condition-invisible))),
+  .u-hide-if-empty-cms:not(:has(.w-dyn-item)),
+  .u-embed-js,
+  .u-embed-css {
+    display: none !important;
+  }
+  /* Focus State */
+  a,
+  button,
+  :where([tabindex]),
+  [data-outline] {
+    outline-offset: var(--focus--offset-outer);
+  }
+  a:focus-visible,
+  button:focus-visible,
+  [tabindex]:focus-visible,
+  label:has(input:focus-visible) [data-outline] {
+    outline-color: var(--_theme---text);
+    outline-width: var(--focus--width);
+    outline-style: solid;
+  }
+  /* Disabled */
+  [data-button]:has(button:disabled) {
+    opacity: 0.5;
+    pointer-events: none;
+  }
+  /* Play Button */
+  .button_toggle_wrap:has([aria-pressed="true"]) .button_toggle_play {
+    opacity: 0;
+  }
+  .button_toggle_wrap:has([aria-pressed="true"]) .button_toggle_pause {
+    opacity: 1;
+  }
+  /* Global / Clickable Component */
+  .wf-design-mode .clickable_wrap {
+    z-index: 0;
+  }
+  .clickable_wrap a[href="#"] {
+    display: none;
+  }
+  .clickable_wrap a[href="#"] ~ button {
+    display: block;
+  }
+  /* Responsive Above */
+  @container threshold-large (width >= 62em) {
+    .u-order-unset-above {
+      order: unset !important;
+    }
+    .u-all-unset-above {
+      all: unset !important;
+    }
+    .u-grid-below {
+      display: flex !important;
+    }
+  }
+  @container threshold-medium (width >= 48em) {
+    .u-order-unset-above {
+      order: unset !important;
+    }
+    .u-all-unset-above {
+      all: unset !important;
+    }
+    .u-grid-below {
+      display: flex !important;
+    }
+  }
+  @container threshold-small (width >= 30em) {
+    .u-order-unset-above {
+      order: unset !important;
+    }
+    .u-all-unset-above {
+      all: unset !important;
+    }
+    .u-grid-below {
+      display: flex !important;
+    }
+  }
+  /* Responsive Below */
+  @container threshold-large (width < 62em) {
+    .u-hide-below {
+      display: none !important;
+    }
+    .u-position-unset-below {
+      position: unset !important;
+    }
+    .u-max-width-unset-below {
+      max-width: unset !important;
+    }
+    .u-margin-unset-below {
+      margin: unset !important;
+    }
+    .u-order-unset-below {
+      order: unset !important;
+    }
+    .u-all-unset-below {
+      all: unset !important;
+    }
+    .u-grid-above {
+      display: flex !important;
+    }
+  }
+  @container threshold-medium (width < 48em) {
+    .u-hide-below {
+      display: none !important;
+    }
+    .u-position-unset-below {
+      position: unset !important;
+    }
+    .u-max-width-unset-below {
+      max-width: unset !important;
+    }
+    .u-margin-unset-below {
+      margin: unset !important;
+    }
+    .u-order-unset-below {
+      order: unset !important;
+    }
+    .u-all-unset-below {
+      all: unset !important;
+    }
+    .u-grid-above {
+      display: flex !important;
+    }
+  }
+  @container threshold-small (width < 30em) {
+    .u-hide-below {
+      display: none !important;
+    }
+    .u-position-unset-below {
+      position: unset !important;
+    }
+    .u-max-width-unset-below {
+      max-width: unset !important;
+    }
+    .u-margin-unset-below {
+      margin: unset !important;
+    }
+    .u-order-unset-below {
+      order: unset !important;
+    }
+    .u-all-unset-below {
+      all: unset !important;
+    }
+    .u-grid-above {
+      display: flex !important;
+    }
+  }
+  /* State Manager */
+  [data-state] {
+    --_state---true: 1;
+    --_state---false: 0;
+  }
+  .is-active,
+  [data-state~="checked"]:is(:checked, :has(:checked)),
+  [data-state~="current"]:is(.w--current, :has(.w--current)),
+  [data-state~="open"]:is(.w--open, :has(.w--open)),
+  [data-state~="expanded"]:is(
+      [aria-expanded="true"],
+      :has([aria-expanded="true"])
+    ),
+  [data-state~="external"]:is([target="_blank"], :has([target="_blank"])) {
+    --_state---true: 0;
+    --_state---false: 1;
+  }
+  .wf-design-mode [data-trigger~="preview"],
+  [data-trigger~="focus"]:is(:focus-visible, :has(:focus-visible)),
+  [data-trigger~="group"]:has(
+      [data-trigger~="focus-other"]:focus-visible,
+      [data-trigger~="focus-other"] :focus-visible
+    )
+    [data-trigger~="focus-other"]:not(:focus-visible, :has(:focus-visible)) {
+    --_trigger---on: 0;
+    --_trigger---off: 1;
+  }
+  @media (hover: hover) {
+    [data-trigger~="hover"]:hover {
+      --_trigger---on: 0;
+      --_trigger---off: 1;
+    }
+    [data-trigger~="group"]:has([data-trigger~="hover-other"]:hover)
+      [data-trigger~="hover-other"]:not(:hover) {
+      --_trigger---on: 0;
+      --_trigger---off: 1;
+    }
+    [data-trigger~="hover-other"]:hover {
+      --_trigger---on: 1 !important;
+      --_trigger---off: 0 !important;
+    }
+  }
+  @media (hover: none) {
+    [data-trigger~="mobile"] {
+      --_trigger---on: 0;
+      --_trigger---off: 1;
+    }
+  }
+
+  select {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    &::-ms-expand {
+      display: none;
+    }
+  }
+
+  /* Custom CSS */
+  .g_circle_blur {
+    opacity: 0;
+    transform: translate(0, 10%);
+    transition: opacity 0.5s ease, transform 0.5s ease, filter 0.5s ease,
+      display 0.5s ease allow-discrete;
+    will-change: opacity, transform, filter;
+  }
+
+  [data-hover="text"] {
+    text-shadow: 0px 1em currentColor;
+    overflow: clip;
+    line-height: 1em !important;
+  }
+</style>
+
+<!-- Images Loaded -->
+<script src="https://unpkg.com/imagesloaded@5/imagesloaded.pkgd.min.js"></script>
+<!-- Lenis Smooth Scrolling -->
+<script src="https://unpkg.com/lenis@1.3.11/dist/lenis.min.js"></script>
+<!-- Swiper JS -->
+<script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/indrampd/dist/swiper/swiper-gl.min.js"></script>
+
+<script>
+  let lenis = new Lenis({
+    lerp: 0.125,
+    wheelMultiplier: 0.8,
+    gestureOrientation: "vertical",
+    normalizeWheel: false,
+    smoothTouch: false,
+    autoResize: true,
+  });
+
+  // Update ScrollTrigger on Lenis scroll
+  lenis.on("scroll", ScrollTrigger.update);
+
+  gsap.ticker.add((time) => {
+    lenis.raf(time * 1000);
+  });
+
+  gsap.ticker.lagSmoothing(0);
+</script>
+
+<script>
+  const preloadImages = () => {
+    return new Promise((resolve, reject) => {
+      imagesLoaded(document.querySelectorAll("img"), resolve);
+    });
+  };
+
+  CustomEase.create("cEase", "0.65, 0.05, 0, 1");
+  CustomEase.create("cEaseReverse", "1, 0, 0.35, 0.95");
+
+  gsap.defaults({
+    ease: "cEase",
+    duration: 1,
+  });
+
+  gsap.registerEffect({
+    name: "blink",
+    effect: (target, config) => {
+      if (config.direction === "to") {
+        return gsap.to(target, {
+          autoAlpha: config.autoAlpha || 0,
+          duration: config.duration || 0.4,
+          stagger: {
+            from: config.from || "random",
+            amount: config.amount || 0.1,
+          },
+          ease: "bounce.in",
+        });
+      } else {
+        return gsap.from(target, {
+          autoAlpha: config.autoAlpha || 0,
+          duration: config.duration || 0.4,
+          stagger: {
+            from: config.from || "random",
+            amount: config.amount || 0.1,
+          },
+          ease: "bounce.in",
+        });
+      }
+    },
+    extendTimeline: true,
+  });
+
+  function updateElementCounts() {
+    const sourceElements = document.querySelectorAll("[data-count-name]");
+    const displayElements = document.querySelectorAll("[data-count-number]");
+
+    if (sourceElements.length === 0 || displayElements.length === 0) {
+      console.warn("Missing source or display elements");
+      return;
+    }
+
+    const counts = {};
+    sourceElements.forEach((el) => {
+      const name = el.dataset.countName;
+      counts[name] = (counts[name] || 0) + 1;
+    });
+
+    displayElements.forEach((displayEl) => {
+      const countKey = displayEl.dataset.countNumber;
+      const countValue = counts[countKey] || 0;
+
+      displayEl.textContent = countValue;
+
+      displayEl.setAttribute("data-current-count", countValue);
+    });
+
+    return counts;
+  }
+
+  function heroVisualSlider() {
+    const wrap = document.querySelector(".hero_wrap");
+
+    if (!wrap) return;
+
+    gsap.from(wrap, { autoAlpha: 0, duration: 2, delay: 0.4 });
+
+    const swiperVisualEl = document.querySelector(".swiper.is-hero-bg");
+    const swiperTextEl = document.querySelector(".swiper.is-hero-text");
+
+    const swiperVisual = new Swiper(swiperVisualEl, {
+      modules: [SwiperGL],
+      effect: "gl",
+      gl: { shader: "morph-x" },
+      speed: 1200,
+      loop: true,
+      initialSlide: 0,
+      allowTouchMove: false,
+    });
+
+    const swiperText = new Swiper(swiperTextEl, {
+      slidesPerView: "auto",
+      loop: true,
+      speed: 1200,
+      centeredSlides: true,
+      grabCursor: true,
+      initialSlide: 0,
+      autoplay: {
+        enabled: true,
+        delay: 4000,
+      },
+    });
+
+    swiperText.on("realIndexChange", (swiper) => {
+      swiperVisual.slideToLoop(swiper.realIndex, 1200, false);
+    });
+  }
+
+  function initCSSMarquee() {
+    const pixelsPerSecond = 75; // Set the marquee speed (pixels per second)
+    const marquees = document.querySelectorAll("[data-css-marquee]");
+
+    // Duplicate each [data-css-marquee-list] element inside its container
+    marquees.forEach((marquee) => {
+      marquee.querySelectorAll("[data-css-marquee-list]").forEach((list) => {
+        const duplicate = list.cloneNode(true);
+        marquee.appendChild(duplicate);
+      });
+    });
+
+    // Create an IntersectionObserver to check if the marquee container is in view
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          entry.target
+            .querySelectorAll("[data-css-marquee-list]")
+            .forEach(
+              (list) =>
+                (list.style.animationPlayState = entry.isIntersecting
+                  ? "running"
+                  : "paused")
+            );
+        });
+      },
+      { threshold: 0 }
+    );
+
+    // Calculate the width and set the animation duration accordingly
+    marquees.forEach((marquee) => {
+      marquee.querySelectorAll("[data-css-marquee-list]").forEach((list) => {
+        list.style.animationDuration = list.offsetWidth / pixelsPerSecond + "s";
+        list.style.animationPlayState = "paused";
+      });
+      observer.observe(marquee);
+    });
+  }
+
+  function initPinLogo() {
+    const logoPin = document.querySelector(".testimonial_card");
+    const logoList = document.querySelector(".logo_list_wrap");
+
+    if (!logoPin || !logoList) return;
+
+    ScrollTrigger.create({
+      trigger: logoPin,
+      start: "clamp(center center)",
+      endTrigger: logoList,
+      end: "clamp(top center-=5%)",
+      pin: true,
+      pinSpacing: false,
+    });
+  }
+
+  function heroLoopAnim() {
+    const wrapper = document.querySelector(".hero_title_value_wrap");
+    const titles = gsap.utils.toArray(".hero_title_value", wrapper);
+
+    if (titles.length === 0) {
+      console.warn("Hero title elements (.hero_title_value) not found.");
+      return;
+    }
+
+    const maxWidth = Math.max(...titles.map((title) => title.offsetWidth));
+
+    gsap.set(wrapper, {
+      height: titles[0].offsetHeight + "px",
+      width: maxWidth * 1.1 + "px",
+    });
+
+    function animateNextTitle() {
+      const currentTitle = wrapper.querySelector(".hero_title_value");
+
+      const split = new SplitText(currentTitle, { type: "chars" });
+
+      // const imageTransitionTween = sketch.next();
+
+      gsap
+        .timeline({
+          onComplete: () => {
+            split.revert();
+            wrapper.appendChild(currentTitle);
+            animateNextTitle();
+          },
+        })
+        .fromTo(
+          split.chars,
+          {
+            yPercent: 100,
+          },
+          {
+            yPercent: 0,
+            stagger: 0.015,
+          }
+        )
+        // .add(imageTransitionTween, "<")
+        .to(
+          split.chars,
+          {
+            yPercent: -100,
+            stagger: 0.015,
+          },
+          "+=2"
+        );
+    }
+
+    animateNextTitle();
+  }
+
+  function buttonHoverAnim() {
+    const buttons = gsap.utils.toArray(".button_main_wrap");
+
+    if (!buttons.length) return null;
+
+    const context = gsap.context(() => {
+      buttons.forEach((button) => {
+        const textEl = button.querySelector(".button_main_text");
+        if (!textEl) return;
+
+        const textElSplit = SplitText.create(textEl, {
+          type: "lines, words, chars",
+          mask: "lines",
+          linesClass: "lines",
+          charsClass: "char",
+        });
+
+        gsap.set(textElSplit.chars, { yPercent: 0 });
+
+        // Create timeline with optimized settings
+
+        const tl = gsap.timeline({
+          paused: true,
+          defaults: {
+            duration: 0.6,
+          },
+        });
+
+        // Optimized animation with will-change and force3D
+        tl.to(textElSplit.chars, {
+          yPercent: -100,
+          stagger: 0.008,
+          force3D: true,
+        });
+
+        // Use more performant event handling
+        let isHovered = false;
+
+        const handleMouseEnter = () => {
+          if (!isHovered) {
+            isHovered = true;
+            tl.play();
+          }
+        };
+
+        const handleMouseLeave = () => {
+          if (isHovered) {
+            isHovered = false;
+            tl.reverse();
+          }
+        };
+
+        button.addEventListener("mouseenter", handleMouseEnter, {
+          passive: true,
+        });
+        button.addEventListener("mouseleave", handleMouseLeave, {
+          passive: true,
+        });
+
+        // Store cleanup function
+        button._cleanup = () => {
+          button.removeEventListener("mouseenter", handleMouseEnter);
+          button.removeEventListener("mouseleave", handleMouseLeave);
+          textElSplit.revert();
+          tl.kill();
+        };
+      });
+    }, buttons);
+
+    // Enhanced cleanup method
+    context.cleanup = () => {
+      buttons.forEach((button) => {
+        if (button._cleanup) button._cleanup();
+      });
+      context.revert();
+    };
+
+    return context;
+  }
+
+  function buttonIconHoverAnim() {
+    const buttons = gsap.utils.toArray(
+      ".button_main_wrap.is-icon, .different_item2"
+    );
+
+    if (!buttons.length) return null;
+
+    const context = gsap.context(() => {
+      buttons.forEach((button) => {
+        const arrowWrap = gsap.utils.selector(".arrow_wrap", button);
+        const arrowBlock = gsap.utils.toArray(".arrow_block", button);
+
+        if (!arrowWrap) return;
+
+        const tl = gsap.timeline({
+          defaults: {
+            duration: 0.75,
+          },
+          paused: true,
+        });
+
+        tl.to(arrowBlock, {
+          xPercent: 100,
+          rotateZ: 45,
+          stagger: {
+            amount: 0.1,
+            from: "center",
+          },
+        });
+
+        let isHovered = false;
+
+        const handleMouseEnter = () => {
+          if (!isHovered) {
+            isHovered = true;
+            tl.play();
+          }
+        };
+
+        const handleMouseLeave = () => {
+          if (isHovered) {
+            isHovered = false;
+            tl.reverse();
+          }
+        };
+
+        button.addEventListener("mouseenter", handleMouseEnter, {
+          passive: true,
+        });
+        button.addEventListener("mouseleave", handleMouseLeave, {
+          passive: true,
+        });
+
+        // Store cleanup function
+        button._cleanup = () => {
+          button.removeEventListener("mouseenter", handleMouseEnter);
+          button.removeEventListener("mouseleave", handleMouseLeave);
+          textElSplit.revert();
+          tl.kill();
+        };
+      });
+    }, buttons);
+
+    // Enhanced cleanup method
+    context.cleanup = () => {
+      buttons.forEach((button) => {
+        if (button._cleanup) button._cleanup();
+      });
+      context.revert();
+    };
+
+    return context;
+  }
+
+  function buttonLinkHoverAnim() {
+    const buttons = gsap.utils.toArray("a[data-hover=link]");
+
+    if (!buttons.length) return null;
+
+    const context = gsap.context(() => {
+      buttons.forEach((button) => {
+        const textEl = button.querySelector("[data-hover=text]");
+        if (!textEl) return;
+
+        const textElSplit = SplitText.create(textEl, {
+          type: "lines, words, chars",
+          mask: "lines",
+          linesClass: "lines",
+          charsClass: "char",
+        });
+
+        gsap.set(textElSplit.chars, { yPercent: 0 });
+
+        // Create timeline with optimized settings
+        const tl = gsap.timeline({
+          paused: true,
+          defaults: {
+            duration: 0.6,
+          },
+        });
+
+        // Optimized animation with will-change and force3D
+        tl.to(textElSplit.chars, {
+          yPercent: -100,
+          stagger: 0.008,
+          force3D: true,
+        });
+
+        // Use more performant event handling
+        let isHovered = false;
+
+        const handleMouseEnter = () => {
+          if (!isHovered) {
+            isHovered = true;
+            tl.play();
+          }
+        };
+
+        const handleMouseLeave = () => {
+          if (isHovered) {
+            isHovered = false;
+            tl.reverse();
+          }
+        };
+
+        button.addEventListener("mouseenter", handleMouseEnter, {
+          passive: true,
+        });
+        button.addEventListener("mouseleave", handleMouseLeave, {
+          passive: true,
+        });
+
+        // Store cleanup function
+        button._cleanup = () => {
+          button.removeEventListener("mouseenter", handleMouseEnter);
+          button.removeEventListener("mouseleave", handleMouseLeave);
+          textElSplit.revert();
+          tl.kill();
+        };
+      });
+    }, buttons);
+
+    // Enhanced cleanup method
+    context.cleanup = () => {
+      buttons.forEach((button) => {
+        if (button._cleanup) button._cleanup();
+      });
+      context.revert();
+    };
+
+    return context;
+  }
+
+  function cornerHoverAnim() {
+    const triggers = document.querySelectorAll('[data-trigger="hover"]');
+
+    if (!triggers.length) return;
+
+    triggers.forEach((trigger) => {
+      const corners = trigger.querySelectorAll('[data-blink-reveal="false"]');
+
+      if (!corners.length) return;
+
+      const tl = gsap.timeline({
+        paused: true,
+      });
+
+      tl.blink(corners, { duration: 0.4, delay: 0.4 });
+
+      trigger.addEventListener("mouseenter", () => {
+        tl.play();
+      });
+      trigger.addEventListener("mouseleave", () => {
+        tl.reverse();
+      });
+    });
+  }
+
+  function headingRevealAnim() {
+    document.querySelectorAll("[data-word-reveal='true']").forEach((text) => {
+      const split = SplitText.create(text.children, {
+        type: "words, chars",
+        mask: "words",
+        wordsClass: "word",
+        charsClass: "char",
+      });
+
+      const tl = gsap.timeline({
+        scrollTrigger: {
+          trigger: text,
+          start: "top bottom",
+          end: "top 80%",
+          toggleActions: "none play none none",
+        },
+      });
+      tl.from(split.words, {
+        yPercent: 120,
+        delay: 0.5,
+        duration: 0.8,
+        filter: "blur(5px)",
+        stagger: { amount: 0.15 },
+      });
+
+      gsap.set(text, { visibility: "visible" });
+    });
+  }
+
+  function eyebrowAnim() {
+    const wraps = document.querySelectorAll("[data-eyebrow-reveal=true]");
+
+    wraps.forEach((wrap) => {
+      const tl = gsap.timeline({
+        scrollTrigger: {
+          trigger: wrap.parentNode,
+          start: "top bottom",
+          end: "top 80%",
+          toggleActions: "none play none none",
+        },
+        defaults: { overwrite: true },
+      });
+
+      tl.blink(wrap, { duration: 0.4, delay: 0.4 });
+    });
+  }
+
+  function aboutAnim() {
+    const section = document.querySelector(".about_wrap");
+
+    if (!section) return;
+
+    const paragraph = section.querySelector(".about_text");
+
+    let paragraphSplit = SplitText.create(paragraph, {
+      type: "words, chars",
+      wordsClass: "word",
+      charsClass: "char",
+    });
+
+    let tl = gsap.timeline({
+      scrollTrigger: {
+        trigger: paragraph,
+        start: "clamp(top 80%)",
+        end: "clamp(bottom 80%)",
+        scrub: true,
+      },
+    });
+
+    tl.from(paragraphSplit.chars, {
+      autoAlpha: 0.6,
+      stagger: 0.15,
+    });
+  }
+
+  function loaderAnim() {
+    const loaderWrap = document.querySelector(".loader_wrap");
+
+    if (!loaderWrap) return;
+
+    const loaderLogo = loaderWrap.querySelector(".loader_logo");
+    const loaderSVG = loaderWrap.querySelector("svg");
+    const paths = gsap.utils.toArray("path", loaderSVG);
+    const desktopLogomark = document.querySelector(".nav_desktop_logomark");
+    const desktopLogotype = document.querySelector(".nav_desktop_logotype");
+    const mobileLogomark = document.querySelector(".nav_mobile_logomark");
+    const mobileLogotype = document.querySelector(".nav_mobile_logotype");
+
+    const mm = gsap.matchMedia();
+    let newContainer;
+    let logoType;
+
+    if (lenis) {
+      lenis.stop();
+    }
+
+    mm.add(
+      {
+        isDesktop: "(min-width: 992px)",
+        isTablet: "(max-width: 991px)",
+      },
+      (ctx) => {
+        const { isDesktop, isTablet } = ctx.conditions;
+
+        newContainer = isDesktop ? desktopLogomark : mobileLogomark;
+        logoType = isDesktop ? desktopLogotype : mobileLogotype;
+
+        const logoPaths = logoType.querySelectorAll("path");
+
+        const state = Flip.getState(loaderSVG);
+
+        const tl = gsap.timeline({
+          onComplete: () => {
+            const pulse = gsap.to(loaderSVG, {
+              autoAlpha: 0.25,
+              repeat: -1,
+              duration: 1,
+              yoyo: true,
+            });
+
+            preloadImages().then(() => {
+              newContainer.prepend(loaderSVG);
+              pulse.progress(0).pause();
+
+              if (lenis) lenis.start();
+
+              heroVisualSlider();
+
+              const logoTl = gsap.timeline();
+
+              logoTl
+                .to(loaderWrap, { autoAlpha: 0 })
+                .add(() => {
+                  Flip.from(state, {
+                    duration: 1,
+                    ease: "power2.inOut",
+                  });
+                }, "<")
+                .from(logoPaths, {
+                  y: 50,
+                  autoAlpha: 0,
+                  duration: 1,
+                  stagger: 0.01,
+                });
+            });
+          },
+        });
+        gsap.set(paths, { drawSVG: 0 });
+        gsap.set(loaderLogo, { autoAlpha: 1 });
+
+        tl.to(paths, {
+          delay: 0.85,
+          drawSVG: "100%",
+          ease: "none",
+          duration: 0.85,
+          stagger: { each: 0.75, from: "end" },
+        });
+      }
+    );
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    initPinLogo();
+    initCSSMarquee();
+    eyebrowAnim();
+    cornerHoverAnim();
+    updateElementCounts();
+    heroVisualSlider();
+
+    document.fonts.ready.then(() => {
+      buttonHoverAnim();
+      buttonIconHoverAnim();
+      buttonLinkHoverAnim();
+      aboutAnim();
+      headingRevealAnim();
+      ScrollTrigger.refresh();
+    });
+  });
+</script>
+<!--<script src="https://3nkm9d.csb.app/slider.js"></script>-->
+<!--<script src="https://3nkm9d.csb.app/script.js"></script>-->

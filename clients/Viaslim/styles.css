@@ -1,0 +1,278 @@
+/* BUTTON ANIMATION */
+/* .button_main_wrap:not(
+    [data-wf--button-main--style="primary-white"],
+    [data-wf--button-main--style="secondary-white"],
+    [data-wf--button-main--style="primary-border"],
+    [data-wf--button-main--style="primary-grey"]
+  )::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  left: 0%;
+  top: 0%;
+  transform: translateX(-110%);
+  width: 100%;
+  height: 100%;
+  border-radius: 100vw;
+  background-color: var(--_button-style---text);
+  filter: blur(30px);
+  transition: transform 0.6s ease;
+}
+
+.button_main_wrap:not([data-wf--button-main--style="primary-white"]):hover {
+  &::before {
+    transform: translateX(110%);
+  }
+}
+
+.button_arrow_wrap.swiper-button-disabled {
+  background-color: var(--_button-style---text);
+  color: var(--swatch--subtitle);
+  pointer-events: none;
+}
+
+[data-wf--button-arrow--style="purple-light"]::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, #40326f 0%, #aca8e2 100%);
+  opacity: 0;
+  border-radius: 100vw;
+  transition: all 0.3s ease;
+}
+
+[data-wf--button-arrow--style="purple-light"]:hover {
+  &::before {
+    opacity: 1;
+  }
+}
+
+[data-wf--button-arrow--style="green-light"]::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(151deg, #10403b 14.89%, #127369 85.11%);
+  opacity: 0;
+  border-radius: 100vw;
+  transition: all 0.3s ease;
+}
+
+[data-wf--button-arrow--style="green-light"]:hover {
+  &::before {
+    opacity: 1;
+  }
+} */
+
+/* Disabled Button State */
+/* .button_main_wrap.is-disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+[link-hover] {
+  position: relative;
+  transition: color 0.4s ease-out;
+}
+
+[link-hover]::after {
+  content: "";
+  position: absolute;
+  width: 100%;
+  transform: scaleX(0);
+  height: 1.5px;
+  bottom: 0;
+  left: 0;
+  background-color: var(--_theme---text);
+  transition: transform 0.4s ease-out;
+  transform-origin: bottom right;
+}
+
+[link-hover]:hover {
+  color: var(--_theme---text);
+  transition-delay: 0.1s;
+}
+
+[link-hover]:hover::after {
+  transform-origin: bottom left;
+  transition-delay: 0.1s;
+}
+
+[link-hover]:hover::after {
+  transform: scaleX(1);
+  transition-delay: 0.1s;
+}
+
+[data-animation-number] {
+  font-variant-numeric: tabular-nums;
+} */
+
+/* Pricing Section */
+/* .pricing_content_cta_wrap {
+  height: 100%;
+}
+
+.pricing_content_tab_wrap {
+  transition: background 0.3s ease;
+
+  .tabs_menu {
+    transition: background 0.3s ease;
+  }
+}
+
+[data-pricing-theme="secondary"] {
+  .pricing_content_wrap:has([data-w-tab="krankenkasse"].w--current) {
+    .pricing_content_tab_wrap {
+      background: #247c72;
+
+      .tabs_menu {
+        background: #33958b;
+      }
+    }
+  }
+}
+
+[data-pricing-theme="primary"] {
+  .pricing_content_wrap:has([data-w-tab="krankenkasse"].w--current) {
+    .pricing_content_tab_wrap {
+      background: #aca8e2;
+
+      .tabs_menu {
+        background: #9994db;
+      }
+    }
+  }
+}
+
+.pricing_content_wrap:has([data-w-tab="krankenkasse"].w--current) {
+  .pricing_content_cta_wrap {
+    grid-template-rows: 0fr;
+    display: none;
+  }
+
+  .pricing_content_tab_wrap {
+    background: #aca8e2;
+
+    .tabs_menu {
+      background: #9994db;
+    }
+  }
+}
+
+.pricing_content_tab_wrap {
+  height: 100%;
+}
+
+.pricing_content_wrap:has([data-w-tab="selbstzahler"].w--current) {
+  [data-pricing="krankenkasse"] {
+    opacity: 0;
+    pointer-events: none;
+    visibility: hidden;
+    height: 0;
+  }
+  [data-pricing="selbstzahler"] {
+    opacity: 1;
+    pointer-events: auto;
+    visibility: visible;
+    height: auto;
+  }
+}
+
+[data-pricing="selbstzahler"] {
+  opacity: 0;
+  pointer-events: none;
+  visibility: hidden;
+  height: 0;
+} */
+
+/* Result Reveal Setup 
+.bmi_modal_result_wrap {
+  display: grid;
+  /* Starting state - explicit 0fr 
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.5s ease; /* Fallback if GSAP fails 
+}
+
+/* Ensure inner content is overflow hidden for the reveal to work 
+.bmi_modal_result_wrap > .u-overflow-hidden {
+  min-height: 0;
+}
+
+@media screen and (min-width: 992px) {
+  .journey_content_visual_list,
+  .journey_content_card_list {
+    display: grid !important;
+  }
+  .journey_content_visual_item,
+  .journey_content_card_item {
+    grid-area: 1 / 1 / 2 / 2;
+    opacity: 0;
+    visibility: hidden;
+  }
+  .journey_content_card_item {
+    position: relative;
+    height: max-content;
+  }
+  /* First item visible by default 
+  .journey_content_visual_item:first-child,
+  .journey_content_card_item:first-child {
+    opacity: 1;
+    visibility: visible;
+  }
+  /* Initial clip-path for hidden visuals 
+  .journey_content_visual_item:not(:first-child) {
+    clip-path: inset(0% 0% 100% 0%);
+    opacity: 1; /* Keep opacity 1 so only clip-path reveals it 
+    visibility: visible;
+  }
+  /* Active state for the circle/number 
+  .journey_content_number {
+    transition: all 0.35s ease;
+  }
+
+  .journey_content_number.u-background-purple-light::before {
+    content: "";
+    position: absolute;
+    z-index: -1;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, #40326f 0%, #aca8e2 100%);
+    opacity: 0;
+    transition: opacity 0.35s ease;
+  }
+
+  .journey_content_number.u-background-green-light::before {
+    content: "";
+    position: absolute;
+    z-index: -1;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(151deg, #10403b 14.89%, #127369 85.11%);
+    opacity: 0;
+    transition: opacity 0.35s ease;
+  }
+
+  .journey_content_number.u-background-purple-light.is-active {
+    background: transparent !important;
+    color: white;
+
+    &::before {
+      opacity: 1;
+    }
+  }
+
+  .journey_content_number.u-background-green-light.is-active {
+    background: transparent !important;
+    color: white;
+
+    &::before {
+      opacity: 1;
+    }
+  }
+}
+*/

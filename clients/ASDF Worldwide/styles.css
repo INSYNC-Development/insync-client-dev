@@ -1,0 +1,92 @@
+.form_phone_field_wrap:has(input:focus) {
+  border-bottom: 1px solid var(--_theme---text);
+}
+/* Nav Custom Style */
+.nav_component.is-scrolled {
+  .nav_desktop_contain {
+    background-color: rgba(240, 245, 254, 0.5);
+    backdrop-filter: blur(40px);
+    padding-left: var(--_spacing---space--4);
+    padding-right: var(--_spacing---space--2);
+    border-radius: 100vw;
+  }
+}
+
+.nav_desktop_contain {
+  transition: all 0.35s ease;
+}
+
+.nav_mobile_layout {
+  transition: padding 0.35s ease-in;
+}
+
+.nav_component:has(.w-nav-button.w--open) {
+  .nav_mobile_layout {
+    padding: 0 var(--nav--spacing-inner-horizontal);
+  }
+}
+
+/* Swiper Button Disabled */
+.button_arrow_wrap.swiper-button-disabled {
+  background-color: #efebff;
+  color: #28303f;
+  pointer-events: none;
+}
+
+[data-text-el="glitch"] {
+  /* color: white;
+  font-family: sans-serif;
+  font-weight: 800; */
+  position: relative;
+  /* font-size: 100px;
+  padding: 30px; */
+
+  /* 
+     Initialize variables. 
+     inset format: inset(top right bottom left) 
+     We start with the text fully clipped (hidden) 
+  */
+  --clip-one: inset(50% 0 50% 0);
+  --clip-two: inset(50% 0 50% 0);
+}
+
+[data-text-el="glitch"]::before,
+[data-text-el="glitch"]::after {
+  /* padding: 30px;*/
+  color: #1a232b;
+  content: "Different";
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  background: #f0f5fe;
+  overflow: hidden;
+  top: 0;
+}
+
+[data-text-el="glitch"]::before {
+  left: 1px;
+  text-shadow: -2px 0 red;
+  /* Modern replacement for clip */
+  clip-path: var(--clip-one);
+}
+
+[data-text-el="glitch"]::after {
+  left: -1px;
+  text-shadow: -2px 0 blue;
+  /* Modern replacement for clip */
+  clip-path: var(--clip-two);
+}
+
+.spec_content_swiper_nav {
+  inset: auto 0% 2.5% 0% !important;
+  .swiper-pagination-bullet-active {
+    background-color: var(--swatch--brand-500);
+  }
+}
+
+.spec_content_swiper_nav.is-charger {
+  inset: auto 0% -10% 0% !important;
+  .swiper-pagination-bullet-active {
+    background-color: var(--swatch--brand-500);
+  }
+}

@@ -1,0 +1,97 @@
+[data-odometer-element] {
+  display: inline-flex;
+  align-items: center;
+  font-variant-numeric: tabular-nums;
+}
+
+[data-odometer-part="mask"],
+[data-odometer-part="static"] {
+  display: inline-block;
+  overflow: clip;
+  padding: 0.05em;
+  margin: -0.05em;
+}
+
+[data-odometer-part="roller"] {
+  display: block;
+  white-space: pre;
+  text-align: center;
+  will-change: transform;
+}
+
+[data-odometer-part="static"] {
+  display: inline-block;
+}
+
+/* .nav_component {
+  transition: all 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+
+  &[data-scrolling-direction="down"] {
+    transform: translateY(-100%);
+  }
+
+  &[data-scrolling-stopped="true"] {
+    transform: translateY(0%);
+  }
+} */
+
+/* .hero_advertise_nav {
+  transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+
+  &[data-scrolling-started="true"] {
+    top: 0%;
+  }
+} */
+
+.advertise_nav_component {
+  transition: all 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+
+  .advertise_nav_top_wrap,
+  .advertise_nav_bottom_wrap,
+  .hero_advertise_nav {
+    transition: all 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  }
+
+  &[data-scrolling-direction="down"] {
+    transform: translateY(calc(var(--_spacing---space--8) * -1));
+
+    .hero_advertise_nav {
+      border-radius: 0;
+      border-top: 1px solid transparent;
+    }
+  }
+
+  &[data-scrolling-direction="up"] {
+    transform: translateY(0);
+
+    .hero_advertise_nav {
+      border-top: 1px solid #ffffff1a;
+      border-top-left-radius: 2.1875rem;
+      border-top-right-radius: 2.1875rem;
+    }
+  }
+}
+
+body:has([data-scrolling-direction="up"]) {
+  .customizations_categories_wrap {
+    top: calc(var(--nav--height) + var(--_spacing---space--8));
+  }
+
+  .customizations_categories_list {
+    top: calc(
+      var(--nav--height) + var(--_spacing---space--3) +
+        var(--_spacing---space--8)
+    );
+  }
+}
+
+.customizations_categories_wrap,
+.customizations_categories_list {
+  transition: all 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.testimonial_swiper {
+  .swiper-wrapper {
+    gap: 0px;
+  }
+}

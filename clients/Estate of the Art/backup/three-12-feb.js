@@ -1,0 +1,366 @@
+import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js";
+import { Renderer, Program, Mesh, Triangle, Color } from "https://esm.sh/ogl";
+
+// ============================================
+// AURORA SETUP (OGL - Render to Texture)
+// ============================================
+
+const VERT = `#version 300 es
+            in vec2 position;
+            void main() {
+                gl_Position = vec4(position, 0.0, 1.0);
+            }
+        `;
+
+const FRAG = `#version 300 es
+            precision highp float;
+
+            uniform float uTime;
+            uniform float uAmplitude;
+            uniform vec3 uColorStops[4];
+            uniform vec2 uResolution;
+            uniform float uBlend;
+            uniform float uOpacity;
+
+            out vec4 fragColor;
+
+            vec3 permute(vec3 x) { return mod(((x * 34.0) + 1.0) * x, 289.0); }
+            float snoise(vec2 v){
+                const vec4 C = vec4(0.211324865405187, 0.366025403784439, -0.577350269189626, 0.024390243902439);
+                vec2 i  = floor(v + dot(v, C.yy));
+                vec2 x0 = v - i + dot(i, C.xx);
+                vec2 i1 = (x0.x > x0.y) ? vec2(1.0, 0.0) : vec2(0.0, 1.0);
+                vec4 x12 = x0.xyxy + C.xxzz;
+                x12.xy -= i1;
+                i = mod(i, 289.0);
+                vec3 p = permute(permute(i.y + vec3(0.0, i1.y, 1.0)) + i.x + vec3(0.0, i1.x, 1.0));
+                vec3 m = max(0.5 - vec3(dot(x0, x0), dot(x12.xy, x12.xy), dot(x12.zw, x12.zw)), 0.0);
+                m = m * m; m = m * m;
+                vec3 x = 2.0 * fract(p * C.www) - 1.0;
+                vec3 h = abs(x) - 0.5;
+                vec3 ox = floor(x + 0.5);
+                vec3 a0 = x - ox;
+                m *= 1.79284291400159 - 0.85373472095314 * (a0*a0 + h*h);
+                vec3 g;
+                g.x  = a0.x  * x0.x  + h.x  * x0.y;
+                g.yz = a0.yz * x12.xz + h.yz * x12.yw;
+                return 130.0 * dot(m, g);
+            }
+
+            struct ColorStop { vec3 color; float position; };
+
+            #define COLOR_RAMP(colors, factor, finalColor) { \
+                int index = 0; \
+                for (int i = 0; i < 3; i++) { \
+                   ColorStop currentColor = colors[i]; \
+                   bool isInBetween = currentColor.position <= factor; \
+                   index = int(mix(float(index), float(i), float(isInBetween))); \
+                } \
+                ColorStop currentColor = colors[index]; \
+                ColorStop nextColor = colors[index + 1]; \
+                float range = nextColor.position - currentColor.position; \
+                float lerpFactor = (factor - currentColor.position) / range; \
+                finalColor = mix(currentColor.color, nextColor.color, lerpFactor); \
+            }
+
+            void main() {
+                vec2 uv = gl_FragCoord.xy / uResolution;
+                
+                // --- SETUP WARNA ---
+                // Kita atur posisi warna agar gradasi vertikal (Y axis)
+                // 0.0 (Atas/Jauh) -> 1.0 (Bawah/Dekat)
+                ColorStop colors[4];
+                colors[0] = ColorStop(uColorStops[0], 0.0);   // Coklat Gelap (Atas)
+                colors[1] = ColorStop(uColorStops[1], 0.3);   // Tembaga
+                colors[2] = ColorStop(uColorStops[2], 0.6);   // Oranye Emas
+                colors[3] = ColorStop(uColorStops[3], 1.0);   // Kuning Lembut (Bawah)
+                
+                vec3 rampColor;
+                // Menggunakan (1.0 - uv.y) agar bagian bawah adalah posisi 1.0 (warna terang)
+                // Ditambah sedikit uv.x * 0.2 agar gradasi warnanya agak miring sedikit
+                float colorFactor = clamp((1.0 - uv.y) + (uv.x * 0.2 - 0.1), 0.0, 1.0);
+                COLOR_RAMP(colors, colorFactor, rampColor);
+                
+                // --- BENTUK GELOMBANG (SUDUT) ---
+                // Kita miringkan koordinat noise agar gelombang terlihat diagonal
+                // uv.x * 0.5 - uv.y * 0.5 membuat alur miring
+                float noiseVal = snoise(vec2(uv.x * 1.5 - uv.y * 0.5 + uTime * 0.1, uTime * 0.2)) * 0.5 * uAmplitude;
+                
+                // Kalkulasi intensitas cahaya
+                // Semakin ke bawah (uv.y mendekati 0), semakin terang
+                // Semakin ke kiri/kanan (tergantung selera), kita atur mask-nya
+                float heightControl = 2.5; 
+                
+                // Kita kalikan uv.y dengan heightControl
+                float diagonalMask = (1.0 - uv.y * heightControl) * 1.5 - (uv.x * 0.3); 
+                
+                float height = exp(noiseVal);
+                
+                // Gabungkan mask diagonal dengan noise
+                // Angka 0.2 adalah 'base height', kurangi noiseVal agar organik
+                float finalShape = diagonalMask - noiseVal * 0.8;
+                
+                float intensity = 0.6 * finalShape;
+                
+                // Smoothstep untuk membuat pinggiran aurora halus
+                float midPoint = 0.4; 
+                float auroraAlpha = smoothstep(midPoint - uBlend * 0.5, midPoint + uBlend * 0.5, intensity);
+                
+                auroraAlpha *= uOpacity;
+                
+                // Sedikit trik: tambahkan extra glow di bagian paling bawah
+                float bottomGlow = (1.0 - uv.y) * 0.5 * uOpacity;
+                auroraAlpha += bottomGlow * 0.2;
+
+                vec3 auroraColor = intensity * rampColor;
+                
+                fragColor = vec4(auroraColor * auroraAlpha, auroraAlpha);
+            }
+        `;
+
+class Aurora {
+  constructor(canvas, options = {}) {
+    this.canvas = canvas;
+    this.config = {
+      colorStops: ["#FFA676", "#FFACAC", "#FFBFAA", "#FFDCA8"],
+      amplitude: 1.0,
+      blend: 0.5,
+      speed: 1.0,
+      opacity: 0.8,
+      ...options,
+    };
+
+    this.renderer = new Renderer({
+      canvas: this.canvas,
+      alpha: true,
+      premultipliedAlpha: true,
+      antialias: true,
+    });
+
+    this.gl = this.renderer.gl;
+    this.gl.clearColor(0, 0, 0, 0);
+    this.gl.enable(this.gl.BLEND);
+    this.gl.blendFunc(this.gl.ONE, this.gl.ONE_MINUS_SRC_ALPHA);
+
+    this.init();
+    window.addEventListener("resize", () => this.resize());
+  }
+
+  init() {
+    const geometry = new Triangle(this.gl);
+    if (geometry.attributes.uv) delete geometry.attributes.uv;
+
+    const colorStopsArray = this.config.colorStops.map((hex) => {
+      const c = new Color(hex);
+      return [c.r, c.g, c.b];
+    });
+
+    this.program = new Program(this.gl, {
+      vertex: VERT,
+      fragment: FRAG,
+      uniforms: {
+        uTime: { value: 0 },
+        uAmplitude: { value: this.config.amplitude },
+        uColorStops: { value: colorStopsArray },
+        uResolution: { value: [window.innerWidth, window.innerHeight] },
+        uBlend: { value: this.config.blend },
+        uOpacity: { value: this.config.opacity },
+      },
+    });
+
+    this.mesh = new Mesh(this.gl, { geometry, program: this.program });
+    this.resize();
+  }
+
+  resize() {
+    this.renderer.setSize(window.innerWidth, window.innerHeight);
+    this.program.uniforms.uResolution.value = [
+      window.innerWidth,
+      window.innerHeight,
+    ];
+  }
+
+  update(time) {
+    this.program.uniforms.uTime.value = time * this.config.speed * 0.1;
+    this.renderer.render({ scene: this.mesh });
+  }
+}
+
+// ============================================
+// THREE.JS SHIMMER SETUP (Masked)
+// ============================================
+
+let scene, camera, renderer, points;
+const auroraCanvas = document.querySelector('[data-canvas="aurora"]');
+
+const aurora = new Aurora(auroraCanvas, {
+  opacity: 1.0,
+  speed: 1.0,
+});
+
+function init() {
+  const canvas = document.querySelector('[data-canvas="shimmer"]');
+
+  if (!canvas) {
+    console.error('Canvas with attribute data-canvas="shimmer" not found.');
+    return;
+  }
+
+  scene = new THREE.Scene();
+  camera = new THREE.PerspectiveCamera(
+    60,
+    window.innerWidth / window.innerHeight,
+    0.1,
+    1000
+  );
+  camera.position.z = 60;
+
+  renderer = new THREE.WebGLRenderer({
+    canvas: canvas,
+    antialias: true,
+    alpha: true,
+  });
+
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+  // ✨ CALCULATE GRID SIZE BASED ON SCREEN
+  const spacing = 0.5;
+  const fov = camera.fov * (Math.PI / 180); // Convert to radians
+  const height = 2 * Math.tan(fov / 2) * camera.position.z;
+  const width = height * camera.aspect;
+
+  const countX = Math.ceil(width / spacing);
+  const countY = Math.ceil(height / spacing);
+  const totalPoints = countX * countY;
+
+  const positions = new Float32Array(totalPoints * 3);
+  const randomOffsets = new Float32Array(totalPoints);
+
+  for (let i = 0; i < countX; i++) {
+    for (let j = 0; j < countY; j++) {
+      const idx = i * countY + j;
+      positions[idx * 3] = (i - countX / 2) * spacing;
+      positions[idx * 3 + 1] = (j - countY / 2) * spacing;
+      positions[idx * 3 + 2] = 0;
+      randomOffsets[idx] = Math.random() * Math.PI * 2;
+    }
+  }
+
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+  geometry.setAttribute("offset", new THREE.BufferAttribute(randomOffsets, 1));
+
+  // Create texture from aurora canvas
+  const auroraTexture = new THREE.CanvasTexture(auroraCanvas);
+  auroraTexture.minFilter = THREE.LinearFilter;
+  auroraTexture.magFilter = THREE.LinearFilter;
+
+  const material = new THREE.ShaderMaterial({
+    uniforms: {
+      uTime: { value: 0 },
+      uColor: { value: new THREE.Color("#FFDCA8") },
+      uAuroraMask: { value: auroraTexture },
+      uResolution: {
+        value: new THREE.Vector2(window.innerWidth, window.innerHeight),
+      },
+    },
+    vertexShader: `
+                    uniform float uTime;
+                    attribute float offset;
+                    varying float vShimmer;
+                    varying vec2 vScreenUV;
+
+                    void main() {
+                        vec3 pos = position;
+                        float shimmer = sin(uTime * 2.5 + offset) * 0.5 + 0.5;
+                        shimmer = pow(shimmer, 3.0); 
+                        vShimmer = shimmer;
+                        
+                        vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
+                        gl_PointSize = (150.0 / -mvPosition.z) * (1.0 + vShimmer * 1.5);
+                        
+                        vec4 clipSpace = projectionMatrix * mvPosition;
+                        gl_Position = clipSpace;
+                        
+                        // Pass screen UV for mask sampling
+                        vScreenUV = (clipSpace.xy / clipSpace.w) * 0.5 + 0.5;
+                    }
+                `,
+    fragmentShader: `
+                    uniform vec3 uColor;
+                    uniform sampler2D uAuroraMask;
+                    uniform vec2 uResolution;
+                    varying float vShimmer;
+                    varying vec2 vScreenUV;
+
+                    void main() {
+                        // Sample aurora texture at particle position
+                        vec4 auroraSample = texture2D(uAuroraMask, vScreenUV);
+                        
+                        // Use aurora alpha as mask + extract color
+                        float auraMask = auroraSample.a;
+                        vec3 auraColor = auroraSample.rgb / max(auroraSample.a, 0.001); // Un-premultiply
+                        
+                        // Discard particles outside aurora
+                        if (auraMask < 0.05) discard;
+                        
+                        // Particle shape
+                        float r = distance(gl_PointCoord, vec2(0.5));
+                        if (r > 0.5) discard;
+                        
+                        // Shimmer alpha modulation
+                        float alpha = smoothstep(0.5, 0.2, r) * (0.15 + vShimmer * 0.85);
+                        alpha *= auraMask; // Masked by aurora intensity
+                        
+                        // Blend shimmer with aurora color (increased aurora influence)
+                        vec3 shimmerColor = mix(auraColor, uColor, 0.4);
+                        
+                        gl_FragColor = vec4(shimmerColor, alpha);
+                    }
+                `,
+    transparent: true,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+  });
+
+  points = new THREE.Points(geometry, material);
+  scene.add(points);
+
+  window.addEventListener("resize", onWindowResize);
+}
+
+function onWindowResize() {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+
+  if (points && points.material.uniforms.uResolution) {
+    points.material.uniforms.uResolution.value.set(
+      window.innerWidth,
+      window.innerHeight
+    );
+  }
+}
+
+function animate() {
+  requestAnimationFrame(animate);
+  const time = performance.now() * 0.001;
+
+  // Update aurora
+  aurora.update(time);
+
+  // Update shimmer
+  if (points) {
+    points.material.uniforms.uAuroraMask.value.needsUpdate = true;
+    points.material.uniforms.uTime.value = time;
+  }
+
+  // Render shimmer
+  renderer.render(scene, camera);
+}
+
+window.onload = () => {
+  init();
+  animate();
+};

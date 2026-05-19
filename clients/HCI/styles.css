@@ -1,0 +1,127 @@
+<style>
+body:has(.nav_component .w-nav-button.w--open):not(:has(.nav_desktop_wrap:not(.w-condition-invisible))) { overflow: hidden; }
+/* on smaller screens */
+@media (width < 65em) {
+	/* disable scroll when mobile menu is open */
+	body:has(.nav_component .w-nav-button.w--open) { overflow: hidden; }
+}
+/* on larger screens */
+@container (min-width: 65em) {
+	/* show desktop nav & dropdown backdrop */
+	.nav_desktop_wrap, .nav_dropdown_backdrop { display: block; }
+	/* hide mobile nav & mobile menu backdrop */
+	.nav_desktop_wrap:not(.w-condition-invisible) ~ .nav_mobile_wrap, .nav_desktop_wrap:not(.w-condition-invisible) ~ .nav_menu_backdrop { display: none; }
+}
+/* dropdown list: initial state */
+html:not(.wf-design-mode) .nav_dropdown_component > .w-dropdown-list {
+	/* removes display none to enable css transitions */
+	display: grid !important;
+	grid-template-columns: minmax(0, 1fr);
+	/* sets list to 0 height by default */
+	grid-template-rows: 0fr;
+	transition: grid-template-rows var(--nav--dropdown-close-duration);
+	/* makes list content not focusable when closed */
+	visibility: hidden;
+	opacity: 0;
+}
+/* makes list content focusable when opened */
+html:not(.wf-design-mode) .nav_dropdown_component > .w-dropdown-list.w--open {
+	visibility: visible;
+	opacity: 1;
+}
+/* sets list child to overflow hidden to enable css height transition */
+.nav_dropdown_component > .w-dropdown-list > * {
+	overflow: hidden;
+}
+/* set open state of dropdown list */
+.nav_dropdown_component:has(> .w-dropdown-toggle[aria-expanded="true"]) > .w-dropdown-list {
+	--nav--dropdown-close-duration: var(--nav--dropdown-open-duration);
+	grid-template-rows: 1fr;
+}
+/* on desktop, delay dropdown opening if another dropdown is open */
+.nav_desktop_wrap:has(.nav_dropdown_component > .w-dropdown-toggle.w--open[aria-expanded="false"]) .nav_dropdown_component:has(> .w--open[aria-expanded="true"]) > .w-dropdown-list {
+	transition-delay: var(--nav--dropdown-close-duration);
+}
+/* reveal dropdown backdrop when dropdown open */
+.nav_dropdown_backdrop {
+	transition: opacity var(--nav--dropdown-close-duration);
+}
+body:has(.nav_dropdown_component > [aria-expanded="true"]) .nav_dropdown_backdrop {
+	opacity: 1;
+}
+/* rotate arrow inside open dropdown */
+.w-dropdown-toggle[aria-expanded="true"] .nav_links_svg {
+	transform: rotate(-180deg);
+}
+/* fade out other dropdown links when link is hovered */
+@media (hover: hover) and (pointer: fine) {
+	body:has(.nav_dropdown_item:hover) .nav_dropdown_item:not(:hover) > * > * {
+		opacity: 0.5;
+	}
+}
+/* animate first hamburger line when opened */
+.nav_component .w-nav-button.w--open > * > :first-child {
+	transform: translateY(calc(var(--nav--hamburger-thickness) * 0.5 + var(--nav--hamburger-gap) * 0.5)) rotate(-45deg);
+}
+/* animate second hamburger line when opened */
+.nav_component .w-nav-button.w--open > * > :last-child {
+	transform: translateY(calc(var(--nav--hamburger-thickness) * -0.5 + var(--nav--hamburger-gap) * -0.5)) rotate(45deg);
+}
+/* reveal mobile menu backdrop on menu open */
+.nav_menu_backdrop {
+	transition: opacity var(--nav--menu-close-duration);
+}
+.nav_component:has(.w-nav-button.w--open) .nav_menu_backdrop {
+	opacity: 1;
+}
+/* menu animations */
+@keyframes menuOpen {
+ from { clip-path: polygon(0 0, 100% 0, 100% 0, 0 0); }
+ to { clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%); }
+}
+@keyframes menuClose {
+ from { clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%); }
+ to { clip-path: polygon(0 0, 100% 0, 100% 0, 0 0); }
+}
+/* menu open */
+.nav_component:has(.w-nav-button.w--open) .w-nav-menu {
+	animation: menuOpen var(--nav--menu-open-duration) ease-in-out forwards;
+}
+/* menu close */
+.nav_component:has(.w-nav-button:not(.w--open)) .w-nav-menu {
+	animation: menuClose var(--nav--menu-close-duration) ease-in-out forwards;
+}
+/* position overflow to top of screen */
+.nav_component .w-nav-overlay {
+ top: 0;
+ min-height: 100vh;
+}
+/* search focus underline */
+.nav_search_wrap:has(input:focus-visible) {
+	border-color: var(--_theme---text);
+}
+/* open dropdown on mobile */
+.nav_mobile_wrap [data-open-on-mobile] > .w-dropdown-toggle {
+	display: none;
+}
+.nav_mobile_wrap [data-open-on-mobile] > .w-dropdown-list {
+	visibility: visible;
+	opacity: 1;
+	display: block;
+	grid-template-rows: 1fr;
+}
+/* Rotate Nav Banner Arrow When External Link */
+a[target="_blank"] .nav_banner_svg {
+	transform: rotate(-45deg);
+}
+/* nav banner */
+html:has(.nav_banner_wrap:not(.w-condition-invisible)):not(.hide-nav-banner) {
+	--nav--height-total: calc(var(--nav--banner-height) + var(--nav--height));
+}
+.hide-nav-banner .nav_banner_wrap {
+	display: none;
+}
+.wf-design-mode .nav_mobile_menu_wrap {
+	width: 100%;
+}
+</style>

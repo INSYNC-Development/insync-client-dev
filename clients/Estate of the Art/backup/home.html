@@ -1,0 +1,509 @@
+<script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+    }
+  }
+</script>
+
+<!-- 2. SCRIPT ANIMASI SHIMMER -->
+<script type="module">
+  // Panggil Three.js menggunakan Import Map di atas
+  import * as THREE from "three";
+
+  let scene, camera, renderer, points, canvas, videoTexture;
+
+  function init() {
+    canvas = document.querySelector('canvas[data-animation="shimmer"]');
+    const video = document.querySelector(".hero-m_bg_video video");
+
+    if (video) {
+      video.crossOrigin = "anonymous";
+      video.load();
+      videoTexture = new THREE.VideoTexture(video);
+      videoTexture.minFilter = THREE.LinearFilter;
+      videoTexture.magFilter = THREE.LinearFilter;
+    }
+
+    scene = new THREE.Scene();
+    camera = new THREE.PerspectiveCamera(
+      60,
+      canvas.clientWidth / canvas.clientHeight,
+      0.1,
+      1000
+    );
+    camera.position.z = 60;
+
+    renderer = new THREE.WebGLRenderer({
+      canvas: canvas,
+      antialias: false,
+      alpha: true,
+    });
+
+    resizeRendererToCanvas();
+    createPoints();
+    window.addEventListener("resize", onWindowResize);
+  }
+
+  function createPoints() {
+    const spacing = 0.5;
+    const fovRad = THREE.MathUtils.degToRad(camera.fov);
+    const visibleHeight =
+      2 * Math.abs(camera.position.z) * Math.tan(fovRad / 2);
+    const visibleWidth =
+      visibleHeight * (canvas.clientWidth / canvas.clientHeight);
+
+    const padding = 2;
+    const countX = Math.ceil((visibleWidth + padding) / spacing);
+    const countY = Math.ceil((visibleHeight + padding) / spacing);
+    const totalPoints = countX * countY;
+
+    const positions = new Float32Array(totalPoints * 3);
+    const randomOffsets = new Float32Array(totalPoints);
+
+    for (let i = 0; i < countX; i++) {
+      for (let j = 0; j < countY; j++) {
+        const idx = i * countY + j;
+        positions[idx * 3] = (i - countX / 2) * spacing;
+        positions[idx * 3 + 1] = (j - countY / 2) * spacing;
+        positions[idx * 3 + 2] = 0;
+        randomOffsets[idx] = Math.random() * Math.PI * 2;
+      }
+    }
+
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+    geometry.setAttribute(
+      "offset",
+      new THREE.BufferAttribute(randomOffsets, 1)
+    );
+
+    const material = new THREE.ShaderMaterial({
+      uniforms: {
+        uTime: { value: 0 },
+        uColor: { value: new THREE.Color("#FFDCA8") },
+        uVideoTexture: { value: videoTexture },
+      },
+      vertexShader: `
+    precision mediump float;
+    uniform float uTime;
+    attribute float offset;
+    varying float vShimmer;
+    varying vec2 vScreenUv;
+    void main() {
+      vec3 pos = position;
+      float shimmer = sin(uTime * 2.5 + offset) * 0.5 + 0.5;
+      shimmer = shimmer * shimmer * shimmer;
+      vShimmer = shimmer;
+      vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
+      gl_PointSize = (120.0 / -mvPosition.z) * (1.0 + vShimmer * 1.5);
+      vec4 glPos = projectionMatrix * mvPosition;
+      gl_Position = glPos;
+      vScreenUv = (glPos.xy / glPos.w) * 0.5 + 0.5;
+    }`,
+      fragmentShader: `
+    precision mediump float;
+    uniform vec3 uColor;
+    uniform sampler2D uVideoTexture;
+    varying float vShimmer;
+    varying vec2 vScreenUv;
+    void main() {
+        float r = distance(gl_PointCoord, vec2(0.5));
+        if (r > 0.5) discard;
+        vec4 videoPixel = texture2D(uVideoTexture, vScreenUv);
+        float brightness = dot(videoPixel.rgb, vec3(0.299, 0.587, 0.114));
+        float maskValue = min(videoPixel.a, brightness); 
+        float baseAlpha = smoothstep(0.5, 0.2, r) * (0.15 + vShimmer * 0.85);
+        gl_FragColor = vec4(uColor, baseAlpha * maskValue);
+    }`,
+      transparent: true,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    });
+
+    if (points) {
+      points.geometry.dispose();
+      points.material.dispose();
+      scene.remove(points);
+    }
+    points = new THREE.Points(geometry, material);
+    scene.add(points);
+  }
+
+  let resizeTimeout;
+  function onWindowResize() {
+    clearTimeout(resizeTimeout);
+    camera.aspect = canvas.clientWidth / canvas.clientHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(canvas.clientWidth, canvas.clientHeight);
+    resizeTimeout = setTimeout(() => {
+      createPoints();
+    }, 300);
+  }
+
+  let lastFrameTime = 0;
+  const frameInterval = 1000 / 30;
+
+  function resizeRendererToCanvas() {
+    const width = canvas.clientWidth;
+    const height = canvas.clientHeight;
+    if (canvas.width !== width || canvas.height !== height) {
+      renderer.setSize(width, height, false);
+      camera.aspect = width / height;
+      camera.updateProjectionMatrix();
+      if (points && points.material.uniforms.uResolution) {
+        points.material.uniforms.uResolution.value.set(width, height);
+      }
+    }
+  }
+
+  function animate(currentTime) {
+    requestAnimationFrame(animate);
+    if (document.hidden) return;
+    resizeRendererToCanvas();
+    const delta = currentTime - lastFrameTime;
+    if (delta < frameInterval) return;
+    lastFrameTime = currentTime - (delta % frameInterval);
+    const time = currentTime * 0.001;
+    if (points) points.material.uniforms.uTime.value = time;
+    renderer.render(scene, camera);
+  }
+
+  // Inisiasi saat halaman diload
+  window.addEventListener("load", () => {
+    init();
+    requestAnimationFrame(animate);
+  });
+</script>
+
+<!-- 3. SCRIPT GLOBE POINTER COMPONENT -->
+<script type="module">
+  // Perhatikan cara import ini telah disesuaikan agar membaca dari Import Map
+  import * as THREE from "three";
+  import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+
+  console.log("three loaded (Globe)", THREE.REVISION);
+
+  const GLOBE_POINTER_VERSION = "1.6.0-webflow";
+
+  const FRAGMENT_SHADER_MAP = `
+uniform sampler2D u_map_tex;
+varying float vOpacity;
+varying vec2 vUv;
+void main() {
+  vec3 color = texture2D(u_map_tex, vUv).rgb;
+  float luminance = dot(color, vec3(0.299, 0.587, 0.114));
+  vec3 c1 = vec3(1.0, 0.518, 0.0);
+  vec3 c2 = vec3(1.0, 0.702, 0.0);
+  vec3 c3 = vec3(1.0, 0.827, 0.310);
+  float t = luminance;
+  vec3 warm = mix(c1, c2, smoothstep(0.15, 0.6, t));
+  warm = mix(warm, c3, smoothstep(0.6, 1.0, t));
+  float band = 0.5 + 0.5 * sin(vUv.x * 10.0);
+  float strength = mix(0.8, 1.2, band);
+  warm *= strength;
+  warm = clamp(warm, 0.0, 1.0);
+  color = warm;
+  color -= 0.2 * length(gl_PointCoord.xy - vec2(0.5));
+  float dotv = 1. - smoothstep(0.38, 0.4, length(gl_PointCoord.xy - vec2(0.5)));
+  if (dotv < 0.5) discard; 
+  gl_FragColor=vec4(color, dotv * vOpacity); 
+}`;
+
+  const VERTEX_SHADER_MAP = ` 
+uniform sampler2D u_map_tex; 
+uniform float u_dot_size; 
+uniform float u_time_since_click; 
+uniform vec3 u_pointer; 
+#define PI 3.14159265359 
+varying float vOpacity; 
+varying vec2 vUv; 
+void main() { 
+  vUv=uv; 
+  float visibility=step(.2, texture2D(u_map_tex, uv).r); 
+  gl_PointSize=visibility * u_dot_size; 
+  vec4 mvPosition=modelViewMatrix * vec4(position, 1.0); 
+  vOpacity=(1. / length(mvPosition.xyz) - .7); 
+  vOpacity=clamp(vOpacity, .03, 1.); 
+  float t=u_time_since_click - .1;
+  t=max(0., t); 
+  float max_amp=.15; 
+  float dist=1. - .5 * length(position - u_pointer); 
+  float damping=1. / (1. + 20. * t);
+  float delta=max_amp * damping * sin(5. * t * (1. + 2. * dist) - PI); 
+  delta *=1. - smoothstep(.8, 1., dist); 
+  vec3 pos=position; pos *=(1. + delta); 
+  gl_Position=projectionMatrix * modelViewMatrix * vec4(pos, 1.); 
+}`;
+
+  class GlobePointer extends HTMLElement {
+    constructor() {
+      super();
+      this.renderer = null;
+      this.scene = null;
+      this.camera = null;
+      this.rayCaster = null;
+      this.controls = null;
+      this.globe = null;
+      this.globeMesh = null;
+      this.mapMaterial = null;
+      this.clock = new THREE.Clock();
+      this.mouse = new THREE.Vector2(-1, -1);
+      this.earthTexture = null;
+      this.containerEl = null;
+      this.canvas3D = null;
+      this.dragged = false;
+      this._resizeTimeout = null;
+      this._resizeObserver = null;
+      this._needsRaycast = false;
+      this._animationFrame = null;
+      this._lastSize = null;
+      this._resizeHandler = () => {
+        if (this._resizeTimeout) clearTimeout(this._resizeTimeout);
+        this._resizeTimeout = setTimeout(() => this.updateSize(), 100);
+      };
+    }
+
+    connectedCallback() {
+      if (this._initialized) return;
+      this._initialized = true;
+
+      this.setupDOM();
+      this.initScene();
+
+      window.addEventListener("resize", this._resizeHandler);
+
+      setTimeout(() => this.updateSize(), 50);
+      setTimeout(() => this.updateSize(), 200);
+      setTimeout(() => this.updateSize(), 500);
+
+      if (window.ResizeObserver) {
+        this._resizeObserver = new ResizeObserver(() => {
+          if (this._resizeTimeout) clearTimeout(this._resizeTimeout);
+          this._resizeTimeout = setTimeout(() => this.updateSize(), 50);
+        });
+        this._resizeObserver.observe(this);
+      }
+    }
+
+    disconnectedCallback() {
+      window.removeEventListener("resize", this._resizeHandler);
+      if (this._resizeTimeout) clearTimeout(this._resizeTimeout);
+      if (this._resizeObserver) this._resizeObserver.disconnect();
+      if (this._animationFrame) cancelAnimationFrame(this._animationFrame);
+      if (this.controls) this.controls.dispose();
+      if (this.renderer) {
+        this.renderer.dispose();
+        this.renderer.forceContextLoss?.();
+      }
+      if (this.scene) this.scene.clear();
+      this._initialized = false;
+    }
+
+    setupDOM() {
+      this.style.display = "block";
+      this.style.width = "100%";
+      this.style.minHeight = this.style.minHeight || "400px";
+      this.style.height = this.style.height || "100%";
+      this.style.position = "relative";
+      this.style.overflow = "hidden";
+
+      const wrapper = document.createElement("div");
+      wrapper.className = "globe-page";
+
+      wrapper.innerHTML = `
+    <style>
+    :host { display: block; width: 100%; min-height: 400px; height: 100%; position: relative; box-sizing: border-box; overflow: hidden; }
+    .globe-page { width: 100%; height: 100%; min-height: 400px; position: relative; box-sizing: border-box; overflow: hidden; }
+    .globe-wrapper { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); box-sizing: border-box; margin: 0; padding: 0; }
+    canvas { display: block; width: 100%; height: 100%; }
+    </style>
+    <div class="globe-wrapper">
+    <canvas part="canvas" class="globe-canvas"></canvas>
+    </div>`;
+
+      this.innerHTML = "";
+      this.appendChild(wrapper);
+
+      this.containerEl = wrapper.querySelector(".globe-wrapper");
+      this.canvas3D = wrapper.querySelector("canvas");
+    }
+
+    initScene() {
+      this.renderer = new THREE.WebGLRenderer({
+        canvas: this.canvas3D,
+        alpha: true,
+        antialias: false,
+        powerPreference: "high-performance",
+      });
+
+      const dpr = window.devicePixelRatio || 1;
+      this.renderer.setPixelRatio(Math.min(dpr, 0.75));
+
+      this.scene = new THREE.Scene();
+      this.camera = new THREE.OrthographicCamera(-1.1, 1.1, 1.1, -1.1, 0, 3);
+      this.camera.position.z = 1.1;
+
+      this.rayCaster = new THREE.Raycaster();
+      this.rayCaster.far = 1.15;
+
+      this.createOrbitControls();
+
+      const MAP_URL =
+        "https://static.wixstatic.com/media/914fc7_64899b3b7b2a4a3884d7319839e5e760~mv2.png";
+
+      new THREE.TextureLoader().load(
+        MAP_URL,
+        (mapTex) => {
+          this.earthTexture = mapTex;
+          this.earthTexture.repeat.set(1, 1);
+          this.createGlobe();
+          this.addCanvasEvents();
+          this.updateSize();
+          this.renderLoop();
+        },
+        undefined,
+        (err) => console.error("GlobePointer - texture load error:", err)
+      );
+    }
+
+    createOrbitControls() {
+      const controls = new OrbitControls(this.camera, this.canvas3D);
+      controls.enablePan = false;
+      controls.enableZoom = false;
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.05;
+      controls.minPolarAngle = 0.4 * Math.PI;
+      controls.maxPolarAngle = 0.4 * Math.PI;
+      controls.autoRotate = true;
+      controls.autoRotateSpeed = 1.0;
+
+      let timestamp = 0;
+      controls.addEventListener("start", () => (timestamp = Date.now()));
+      controls.addEventListener("end", () => {
+        this.dragged = Date.now() - timestamp > 600;
+      });
+
+      this.controls = controls;
+    }
+
+    createGlobe() {
+      const globeGeometry = new THREE.IcosahedronGeometry(1, 5);
+
+      this.mapMaterial = new THREE.ShaderMaterial({
+        vertexShader: VERTEX_SHADER_MAP,
+        fragmentShader: FRAGMENT_SHADER_MAP,
+        uniforms: {
+          u_map_tex: { value: this.earthTexture },
+          u_dot_size: { value: 0 },
+          u_pointer: { value: new THREE.Vector3(0.0, 0.0, 1.0) },
+          u_time_since_click: { value: 0 },
+        },
+        transparent: true,
+      });
+
+      this.globe = new THREE.Points(globeGeometry, this.mapMaterial);
+      this.scene.add(this.globe);
+
+      this.globeMesh = new THREE.Mesh(
+        globeGeometry,
+        new THREE.MeshBasicMaterial({
+          color: 0x222222,
+          transparent: true,
+          opacity: 0.05,
+        })
+      );
+      this.scene.add(this.globeMesh);
+    }
+
+    addCanvasEvents() {
+      this.containerEl.addEventListener("pointermove", (e) => {
+        this.updateMousePosition(e.clientX, e.clientY);
+        this._needsRaycast = true;
+      });
+      this.containerEl.addEventListener("pointerdown", () => {
+        this.dragged = false;
+      });
+      this.containerEl.addEventListener("click", (e) => {
+        if (!this.dragged) {
+          this.updateMousePosition(e.clientX, e.clientY);
+          const res = this.checkIntersects();
+          if (res.length) {
+            const n = res[0].face.normal.clone();
+            this.mapMaterial.uniforms.u_pointer.value = n;
+            this.clock.start();
+          }
+        }
+      });
+    }
+
+    updateMousePosition(eX, eY) {
+      const rect = this.containerEl.getBoundingClientRect();
+      this.mouse.x = ((eX - rect.left) / rect.width) * 2 - 1;
+      this.mouse.y = -(((eY - rect.top) / rect.height) * 2 - 1);
+    }
+
+    checkIntersects() {
+      if (!this.globeMesh) return [];
+      this.rayCaster.setFromCamera(this.mouse, this.camera);
+      const intersects = this.rayCaster.intersectObject(this.globeMesh);
+      this.containerEl.style.cursor = intersects.length ? "pointer" : "auto";
+      return intersects;
+    }
+
+    renderLoop() {
+      if (this.mapMaterial?.uniforms?.u_time_since_click) {
+        this.mapMaterial.uniforms.u_time_since_click.value =
+          this.clock.getElapsedTime();
+      }
+      if (this._needsRaycast) {
+        this.checkIntersects();
+        this._needsRaycast = false;
+      }
+      if (this.controls) this.controls.update();
+      this.renderer.render(this.scene, this.camera);
+      this._animationFrame = requestAnimationFrame(() => this.renderLoop());
+    }
+
+    updateSize() {
+      if (!this.containerEl || !this.canvas3D || !this.renderer) return;
+
+      const rect = this.getBoundingClientRect();
+      const elementWidth = Math.max(
+        rect.width || this.clientWidth || this.offsetWidth || 0,
+        0
+      );
+      const elementHeight = Math.max(
+        rect.height || this.clientHeight || this.offsetHeight || 0,
+        0
+      );
+
+      if (elementWidth === 0 || elementHeight === 0) {
+        setTimeout(() => this.updateSize(), 80);
+        return;
+      }
+
+      let targetSize = elementWidth * 0.8;
+      if (targetSize > elementHeight) targetSize = elementHeight * 0.8;
+      const finalSize = Math.max(targetSize, 100);
+
+      this.containerEl.style.width = `${finalSize}px`;
+      this.containerEl.style.height = `${finalSize}px`;
+      this.renderer.setSize(finalSize, finalSize, false);
+
+      if (this.mapMaterial?.uniforms?.u_dot_size) {
+        this.mapMaterial.uniforms.u_dot_size.value = 0.01 * finalSize;
+      }
+
+      if (!this._lastSize || Math.abs(this._lastSize - finalSize) > 5) {
+        this._lastSize = finalSize;
+      }
+    }
+  }
+
+  if (!customElements.get("globe-pointer")) {
+    customElements.define("globe-pointer", GlobePointer);
+    console.log("[GlobePointer]", GLOBE_POINTER_VERSION, "defined");
+  }
+</script>

@@ -1,0 +1,131 @@
+/* Hero Section */
+.hero_visuals {
+  position: absolute;
+  bottom: 0;
+
+  /* 1. Position wrapper exactly aligned with text padding (24px) */
+  left: 24px;
+
+  /* 2. Original width of the composition */
+  width: 1574px;
+  height: auto;
+
+  z-index: -1;
+  pointer-events: none;
+}
+
+.hero_video_wrap {
+  position: absolute;
+  bottom: 0;
+
+  /* 4. EXACT OFFSET: Aligns the video's 'hole' with the image */
+  /* This matches the original "-left-[344px]" */
+  left: -344px;
+
+  width: 1920px;
+  aspect-ratio: 1.335187;
+  mix-blend-mode: lighten;
+  z-index: -1;
+}
+
+.hero_dashboard_wrap {
+  position: relative;
+
+  /* 3. Small offset inside the wrapper (matches original "left-2") */
+  left: 8px;
+
+  width: 1024px;
+  margin-bottom: 106px;
+  /* border-top-left-radius: 10px;
+  border-top-right-radius: 10px; */
+  z-index: 2;
+  display: block;
+}
+
+.hero_video {
+  &::before {
+    content: "";
+    position: absolute;
+    z-index: 1;
+    bottom: 0;
+    right: 0;
+    height: 10%;
+    width: 40%;
+    background-color: var(--_theme---background);
+  }
+}
+
+/* =========================================
+   RESPONSIVE SCALING (Tablet & Below)
+   ========================================= */
+
+@media screen and (max-width: 991px) {
+  .hero_wrap.u-section {
+    min-height: 85rem;
+  }
+
+  .hero_visuals {
+    left: -2rem;
+  }
+}
+
+@media screen and (max-width: 767px) {
+  .hero_heading {
+    font-size: 2rem;
+  }
+
+  .hero_heading.u-text-style-display.u-font-ordinal {
+    max-width: none;
+  }
+
+  .hero_desc.u-text-style-medium.u-font-ordinal {
+    max-width: 22ch;
+  }
+
+  .hero_bg_wrap {
+    display: none;
+  }
+
+  .hero_wrap.u-section {
+    min-height: auto;
+    margin-bottom: 0;
+  }
+
+  .hero_visuals {
+    left: 0;
+    width: 100%;
+    position: relative;
+  }
+
+  .hero_video_wrap {
+    min-width: 704px;
+    left: -132px;
+    width: 190%;
+    bottom: 18px;
+
+    &::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      width: 100%;
+      height: 30%;
+      background: linear-gradient(
+        180deg,
+        var(--_theme---background) 0%,
+        transparent 100%
+      );
+    }
+  }
+
+  .hero_dashboard_wrap {
+    width: 105%;
+    min-width: 376px;
+    left: 0;
+    margin-bottom: 56px;
+  }
+
+  .hero_bottom_wrap {
+    position: relative;
+    bottom: auto;
+  }
+}

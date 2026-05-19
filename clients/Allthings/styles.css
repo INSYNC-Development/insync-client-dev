@@ -1,0 +1,86 @@
+.testimonial_2_slider_component {
+  .swiper {
+    margin: 0;
+  }
+
+  @media screen and (min-width: 768px) {
+    .swiper-slide.swiper-slide-visible {
+      min-height: 23.75rem;
+      height: auto !important;
+
+      .testimonial_2_text {
+        display: block;
+        overflow: visible;
+        text-overflow: unset;
+        -webkit-box-orient: unset;
+        -webkit-line-clamp: unset;
+        -webkit-box-orient: unset;
+      }
+    }
+
+    .swiper-slide.swiper-slide-prev {
+      min-height: 23.75rem;
+      height: auto !important;
+
+      .testimonial_2_text {
+        display: block;
+        overflow: visible;
+        text-overflow: unset;
+        -webkit-box-orient: unset;
+        -webkit-line-clamp: unset;
+        -webkit-box-orient: unset;
+      }
+    }
+
+    .swiper-slide {
+      height: 15.5rem;
+
+      .testimonial_2_text {
+        display: -webkit-box;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 6;
+        -webkit-box-orient: vertical;
+      }
+    }
+  }
+
+  .swiper-button-disabled {
+    opacity: 0.3;
+    pointer-events: none;
+  }
+}
+
+.investor_slider_component {
+  .swiper {
+    margin: 0;
+  }
+
+  @media screen and (max-width: 767px) {
+    .swiper-slide {
+      min-height: 15rem;
+    }
+  }
+
+  @media screen and (min-width: 768px) {
+    .swiper-slide.swiper-slide-visible {
+      min-height: 19.5rem;
+      height: auto !important;
+    }
+
+    .swiper-slide.swiper-slide-prev {
+      min-height: 19.5rem;
+      height: auto !important;
+    }
+
+    .swiper-slide {
+      height: 15.5rem;
+    }
+  }
+
+  .swiper-button-disabled {
+    opacity: 0.3;
+    pointer-events: none;
+  }
+}

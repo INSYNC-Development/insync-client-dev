@@ -1,0 +1,297 @@
+<form
+  id="AVP"
+  method="post"
+  action="https://www.secure-hotel-booking.com/ADAPT-Apartments-Berlin-Adlershof/J6MC/search"
+  target="_blank"
+>
+  <input type="hidden" id="language" name="language" value="de-DE" />
+  <input type="hidden" id="AVP_arrivalDate" name="arrivalDate" value="" />
+  <input type="hidden" id="AVP_nights" name="nights" value="" />
+  <input type="hidden" id="_ga" name="_ga" value="" />
+  <input
+    type="hidden"
+    id="selectedHotelId"
+    disabled="disabled"
+    name="selectedHotelId"
+    value=""
+  />
+  <table>
+    <tr>
+      <td colspan="2">
+        Hotel(s) :
+        <select
+          id="AVP_list_hotels"
+          onchange="updateIdHotel('selectedHotelId')"
+        >
+          <option value="0">Alle Hotels</option>
+          <option value="32212">ADAPT Apartments Berlin Adlershof</option>
+          <option value="32213">ADAPT Apartments Gießen</option>
+          <option value="32214">ADAPT Apartments Siegen</option>
+          <option value="32215">ADAPT Apartments Wetzlar</option>
+        </select>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        Ankunftsdatum
+        <select id="AVP_list_days" onchange="updateDDay();"></select>
+        <select id="AVP_list_months" onchange="setDays();"></select>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        Abreisedatum
+        <select id="AVP_list_ddays"></select>
+        <select id="AVP_list_dmonths" onchange="setDDays();"></select>
+      </td>
+    </tr>
+    <tr>
+      <td align="center">
+        <input type="button" value="Buchen" onclick="validate();" />
+      </td>
+      <td align="center">
+        <a
+          href="https://www.secure-hotel-booking.com/modification/ADAPT-Apartments-Berlin-Adlershof/J6MC"
+          target="_blank"
+          >stornieren</a
+        >
+      </td>
+    </tr>
+  </table>
+</form>
+<script type="text/javascript">
+  var months = new Array(
+    "Januar",
+    "Februar",
+    "März",
+    "April",
+    "Mai",
+    "Juni",
+    "Juli",
+    "August",
+    "September",
+    "Oktober",
+    "November",
+    "Dezember"
+  );
+  var message = "Datum außerhalb des Terminplans";
+</script>
+<script type="text/javascript">
+  var maxDuration = 30;
+  var maxListNights = maxDuration == 0 || maxDuration > 30 ? 30 : maxDuration;
+  function init() {
+    var d = new Date();
+    var y = d.getFullYear();
+    var lm = document.getElementById("AVP_list_months");
+    var ld = document.getElementById("AVP_list_days");
+    var ldm = document.getElementById("AVP_list_dmonths");
+    var ldd = document.getElementById("AVP_list_ddays");
+    var ln = document.getElementById("AVP_list_nights");
+    for (i = 0; i < 23; i++) {
+      var m = (d.getMonth() + i) % 12;
+      if (m == 0 && i != 0) y++;
+      appendOption(lm, months[m] + " " + y, y + "-" + (m + 1));
+      if (ldm) appendOption(ldm, months[m] + " " + y, y + "-" + (m + 1));
+    }
+    for (i = 1; i <= 31; i++) {
+      appendOption(ld, i, i);
+      if (ldd) appendOption(ldd, i, i);
+      if (ln && i <= maxListNights) appendOption(ln, i, i);
+    }
+    ld.selectedIndex = d.getDate() - 1;
+    if (ldd && ldm) {
+      if (d.getDate() < getDaysInMonth(d.getFullYear(), d.getMonth() + 1))
+        ldd.selectedIndex = d.getDate();
+      else {
+        ldd.selectedIndex = 0;
+        ldm.selectedIndex = 1;
+      }
+    }
+    setDays();
+    setDDays();
+  }
+  function initGuests() {
+    var a = document.getElementById("selectedAdultCount");
+    var c = document.getElementById("selectedChildCount");
+    var i = document.getElementById("selectedInfantCount");
+    var index;
+    if (a) {
+      for (index = 1; index < 10; index++) {
+        appendOption(a, index, index, index == 2);
+      }
+    }
+    if (c) {
+      for (index = 0; index < 10; index++) {
+        appendOption(c, index, index);
+      }
+    }
+    if (i) {
+      for (index = 0; index < 10; index++) {
+        appendOption(i, index, index);
+      }
+    }
+  }
+  function setDays() {
+    var ld = document.getElementById("AVP_list_days");
+    var lm = document.getElementById("AVP_list_months");
+    var ym = lm.options[lm.selectedIndex].value;
+    var y = eval(ym.substring(0, 4));
+    var m = eval(ym.substring(5, ym.length));
+    var d = getDaysInMonth(y, m);
+    if (d > ld.length) {
+      for (i = ld.length; i < d; i++) appendOption(ld, i + 1, i + 1);
+    }
+    if (d < ld.length) {
+      if (ld.selectedIndex > d - 1) ld.selectedIndex = d - 1;
+      ld.length = d;
+    }
+    updateDDay();
+  }
+  function setDDays() {
+    var ld = document.getElementById("AVP_list_ddays");
+    var lm = document.getElementById("AVP_list_dmonths");
+    if (ld && lm) {
+      var ym = lm.options[lm.selectedIndex].value;
+      var y = eval(ym.substring(0, 4));
+      var m = eval(ym.substring(5, ym.length));
+      var d = getDaysInMonth(y, m);
+      if (d > ld.length) {
+        for (i = ld.length; i < d; i++) appendOption(ld, i + 1, i + 1);
+      }
+      if (d < ld.length) {
+        if (ld.selectedIndex > d - 1) ld.selectedIndex = d - 1;
+        ld.length = d;
+      }
+    }
+  }
+  function updateIdHotel(hotelId) {
+    var index = document.getElementById("AVP_list_hotels").selectedIndex;
+    var element = document.getElementById(hotelId);
+    var attribute = document.createAttribute("disabled");
+    attribute.value = "disabled";
+    if (element.attributes["disabled"] != null)
+      element.attributes.removeNamedItem("disabled");
+    if (index > 0) {
+      element.value =
+        document.getElementById("AVP_list_hotels").options[index].value;
+    } else {
+      element.attributes.setNamedItem(attribute);
+    }
+  }
+  function updateDDay() {
+    var ld = document.getElementById("AVP_list_days");
+    var lm = document.getElementById("AVP_list_months");
+    var ym = lm.options[lm.selectedIndex].value;
+    var y = eval(ym.substring(0, 4));
+    var m = eval(ym.substring(5, ym.length));
+    var d = ld.options[ld.selectedIndex].value;
+    var ldd = document.getElementById("AVP_list_ddays");
+    var lmd = document.getElementById("AVP_list_dmonths");
+    if (ldd == null || lmd == null) return;
+    var ymd = lmd.options[lmd.selectedIndex].value;
+    var yd = eval(ymd.substring(0, 4));
+    var md = eval(ymd.substring(5, ymd.length));
+    var dd = ldd.options[ldd.selectedIndex].value;
+    var aDate = new Date(y, m - 1, d);
+    var dDate = new Date(yd, md - 1, dd);
+    if (aDate > dDate) {
+      dDate = new Date(
+        aDate.getFullYear(),
+        aDate.getMonth(),
+        aDate.getDate() + 1
+      );
+      ymd = dDate.getFullYear() + "-" + (dDate.getMonth() + 1);
+      dd = dDate.getDate();
+      for (var i = 0; i < lmd.options.length; i++) {
+        if (lmd.options[i].value == ymd) {
+          lmd.selectedIndex = i;
+          break;
+        }
+      }
+      setDDays();
+      for (var i = 0; i < ldd.options.length; i++) {
+        if (ldd.options[i].value == dd) {
+          ldd.selectedIndex = i;
+          break;
+        }
+      }
+    }
+  }
+  function appendOption(l, t, v, s) {
+    var e = document.createElement("option");
+    e.text = t;
+    e.value = v;
+    e.selected = s == true;
+    try {
+      l.add(e, null);
+    } catch (ex) {
+      l.add(e);
+    }
+  }
+  function getDaysInMonth(y, m) {
+    var days = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+    var d = days[m - 1];
+    if (d == 28) {
+      if (isLeapYear(y)) d = 29;
+    }
+    return d / 1;
+  }
+  function isLeapYear(y) {
+    if (y % 400 == 0 || (y % 4 == 0 && y % 100 != 0)) return true;
+    return false;
+  }
+  function validate() {
+    var lm = document.getElementById("AVP_list_months");
+    var ld = document.getElementById("AVP_list_days");
+    var ym = lm.options[lm.selectedIndex].value;
+    var y = eval(ym.substring(0, 4));
+    var m = eval(ym.substring(5, ym.length));
+    var d = new Date();
+    var t = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    d = new Date(y, m - 1, eval(ld.options[ld.selectedIndex].value));
+    var nights = 1;
+    var ln = document.getElementById("AVP_list_nights");
+    var ldm = document.getElementById("AVP_list_dmonths");
+    var ldd = document.getElementById("AVP_list_ddays");
+    if (ldm && ldd) {
+      var ydm = lm.options[ldm.selectedIndex].value;
+      var yd = eval(ydm.substring(0, 4));
+      var md = eval(ydm.substring(5, ydm.length));
+      var dd = new Date();
+      dd = new Date(yd, md - 1, eval(ldd.options[ldd.selectedIndex].value));
+      nights = countNights(d, dd);
+      if (d < t || dd <= d || (maxDuration != 0 && nights > maxDuration)) {
+        alert(message);
+        return false;
+      }
+    } else if (ln) {
+      nights = ln.options[ln.selectedIndex].value;
+      if (d < t) {
+        alert(message);
+        return false;
+      }
+    }
+    document.getElementById("AVP_arrivalDate").value =
+      lm.options[lm.selectedIndex].value +
+      "-" +
+      ld.options[ld.selectedIndex].value;
+    document.getElementById("AVP_nights").value = nights;
+    var form = document.getElementById("AVP"),
+      onsubmit = form.getAttribute("onsubmit");
+    if (onsubmit != null && onsubmit != "") form.onsubmit();
+    form.submit();
+    return true;
+  }
+
+  function countNights(arrival, departure) {
+    var arrivalDate = arrival.setHours(0, 0, 0, 0);
+    var departureDate = departure.setHours(0, 0, 0, 0);
+    var millisecondsPerDay = 1000 * 60 * 60 * 24;
+    var millisecondsBetweenDates = departureDate - arrivalDate;
+    var days = millisecondsBetweenDates / millisecondsPerDay;
+    return Math.round(days);
+  }
+
+  init();
+  initGuests();
+</script>

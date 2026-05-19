@@ -1,0 +1,37 @@
+/* Transition settings for smooth effect */
+.video_contain,
+.video_visual_overlay,
+.video_visual_blur,
+.video_btn_expand_wrap {
+  transition: all 0.4s ease;
+}
+
+/* --- STATE: IS PLAYING --- */
+
+/* Hide the text content grid */
+.video_wrap.is-playing .video_contain {
+  opacity: 0;
+  pointer-events: none; /* Prevents clicking hidden links */
+  transform: scale(1.05); /* Slight zoom out effect for text */
+}
+
+/* Hide the dark overlay so video is clear */
+.video_wrap.is-playing .video_visual_overlay {
+  opacity: 0;
+}
+
+/* Hide the blur if used */
+.video_wrap.is-playing .video_visual_blur {
+  opacity: 0;
+}
+
+/* Optional: Change the Expand Icon to a 'Close' style or move it */
+.video_wrap.is-playing .video_btn_expand_wrap {
+  /* Example: you might want to rotate it to look like an X */
+  transform: rotate(45deg);
+  z-index: 999; /* Ensure it stays on top of video to allow closing */
+}
+
+body {
+  scroll-behavior: smooth;
+}
