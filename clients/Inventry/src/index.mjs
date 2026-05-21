@@ -80,15 +80,12 @@ function initAfterEnterFunctions(next) {
     lenis.resize();
   }
 
-  // --- RE-INIT WEBFLOW ---
   if (window.Webflow) {
     window.Webflow.destroy();
     window.Webflow.ready();
 
     const ix2 = window.Webflow.require("ix2");
-    if (ix2) {
-      ix2.init();
-    }
+    if (ix2) ix2.init();
 
     const lottie = window.Webflow.require("lottie");
     if (lottie) {
