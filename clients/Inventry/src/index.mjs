@@ -237,7 +237,7 @@ function runPageOnceAnimation(next) {
       resetPage(next);
     },
     null,
-    0
+    0,
   );
 
   return tl;
@@ -246,25 +246,25 @@ function runPageOnceAnimation(next) {
 function runPageLeaveAnimation(current, next) {
   const transitionWrap = document.querySelector("[data-transition-wrap]");
   const transitionPanel = transitionWrap.querySelector(
-    "[data-transition-panel]"
+    "[data-transition-panel]",
   );
 
   // Elemen dari animasi baru
   const transitionPanelTop = transitionWrap.querySelector(
-    "[data-transition-panel-top]"
+    "[data-transition-panel-top]",
   );
   const transitionPanelBottom = transitionWrap.querySelector(
-    "[data-transition-panel-bottom]"
+    "[data-transition-panel-bottom]",
   );
   const transitionLogo = transitionWrap.querySelector("[data-transition-logo]");
   const transitionLogoPath = transitionWrap.querySelectorAll("path");
 
   // Elemen label dari kode lama
   const transitionLabel = transitionWrap.querySelector(
-    "[data-transition-label]"
+    "[data-transition-label]",
   );
   const transitionLabelText = transitionWrap.querySelector(
-    "[data-transition-label-text]"
+    "[data-transition-label-text]",
   );
 
   // Update teks dinamis
@@ -300,14 +300,14 @@ function runPageLeaveAnimation(current, next) {
     transitionPanel,
     { yPercent: 0 },
     { yPercent: -100, duration: 1 },
-    0
+    0,
   );
   if (transitionPanelTop)
     tl.fromTo(
       transitionPanelTop,
       { scaleY: 0 },
       { scaleY: 1, duration: 1 },
-      "<"
+      "<",
     );
 
   // Animasi logo & label
@@ -322,7 +322,7 @@ function runPageLeaveAnimation(current, next) {
         ease: "expo.out",
         stagger: { amount: 0.1, from: "start" },
       },
-      "<+=0.4"
+      "<+=0.4",
     );
   }
   if (transitionLabel) {
@@ -338,14 +338,14 @@ function runPageLeaveAnimation(current, next) {
 function runPageEnterAnimation(next) {
   const transitionWrap = document.querySelector("[data-transition-wrap]");
   const transitionPanel = transitionWrap.querySelector(
-    "[data-transition-panel]"
+    "[data-transition-panel]",
   );
   const transitionPanelBottom = transitionWrap.querySelector(
-    "[data-transition-panel-bottom]"
+    "[data-transition-panel-bottom]",
   );
   const transitionLogoPath = transitionWrap.querySelectorAll("path");
   const transitionLabel = transitionWrap.querySelector(
-    "[data-transition-label]"
+    "[data-transition-label]",
   );
 
   const tl = gsap.timeline();
@@ -370,7 +370,7 @@ function runPageEnterAnimation(next) {
       overwrite: "auto",
       immediateRender: false,
     },
-    "startEnter"
+    "startEnter",
   );
 
   if (transitionPanelBottom) {
@@ -378,7 +378,7 @@ function runPageEnterAnimation(next) {
       transitionPanelBottom,
       { scaleY: 1 },
       { scaleY: 0, duration: 1 },
-      "<"
+      "<",
     );
   }
 
@@ -394,7 +394,7 @@ function runPageEnterAnimation(next) {
         ease: "expo.inOut",
         stagger: { amount: -0.1, from: "start" },
       },
-      "startEnter-=0.4"
+      "startEnter-=0.4",
     );
   }
 
@@ -408,7 +408,7 @@ function runPageEnterAnimation(next) {
         overwrite: "auto",
         immediateRender: false,
       },
-      "startEnter+=0.1"
+      "startEnter+=0.1",
     );
   }
 
@@ -458,6 +458,8 @@ barba.hooks.enter((data) => {
 barba.hooks.afterEnter((data) => {
   initAfterEnterFunctions(data.next.container);
 
+  renderRecaptcha(data.next.container);
+
   if (hasLenis) {
     lenis.resize();
     lenis.start();
@@ -483,7 +485,7 @@ barba.init({
       async leave(data) {
         return runPageLeaveAnimation(
           data.current.container,
-          data.next.container
+          data.next.container,
         );
       },
       async enter(data) {
@@ -638,7 +640,7 @@ function heroInitial(container, q) {
 
   tl.from(
     q(
-      ".hero_content .tag_wrap, .hero_content h1, .hero_content .hero_desc, .hero_wrap .button_main_wrap"
+      ".hero_content .tag_wrap, .hero_content h1, .hero_content .hero_desc, .hero_wrap .button_main_wrap",
     ),
     {
       y: 20,
@@ -646,7 +648,7 @@ function heroInitial(container, q) {
       filter: "blur(10px)",
       stagger: 0.2,
       ease: "power2.inOut",
-    }
+    },
   );
 }
 
@@ -809,7 +811,7 @@ function heroScrollOutAnimation(container, q) {
   if (!section) return;
 
   const heroItems = q(
-    ".hero_content .tag_wrap, .hero_content h1, .hero_content .hero_desc, .hero_wrap .button_main_wrap"
+    ".hero_content .tag_wrap, .hero_content h1, .hero_content .hero_desc, .hero_wrap .button_main_wrap",
   );
 
   const heroBg = q(".hero_bg");
@@ -847,7 +849,7 @@ function heroScrollOutAnimation(container, q) {
       xPercent: -100,
       ease: "power2.inOut",
     },
-    "-=0.3"
+    "-=0.3",
   );
 }
 
@@ -914,7 +916,7 @@ function cloudAnimation(container) {
       0,
       center,
       center,
-      center
+      center,
     );
     gradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${alpha})`);
     gradient.addColorStop(0.5, `rgba(${r}, ${g}, ${b}, ${alpha * 0.5})`);
@@ -983,7 +985,7 @@ function cloudAnimation(container) {
           scrollProgress = self.progress;
         },
       },
-    }
+    },
   );
 
   const finalSolidColor = "253, 253, 253";
@@ -1013,7 +1015,7 @@ function cloudAnimation(container) {
           -p.size / 2,
           -p.size / 2,
           p.size,
-          p.size
+          p.size,
         );
         ctx.restore();
       }
@@ -1104,10 +1106,10 @@ function horizontalLoop(container) {
   });
 
   const prevBtn = container.querySelector(
-    '.testimonial_controls [data-control="prev"]'
+    '.testimonial_controls [data-control="prev"]',
   );
   const nextBtn = container.querySelector(
-    '.testimonial_controls [data-control="next"]'
+    '.testimonial_controls [data-control="next"]',
   );
 
   function moveSliderBy(amount) {
@@ -1201,7 +1203,7 @@ function navbarInteraction(container) {
       paused: true,
       duration: 0.6,
       ease: "power2.inOut",
-    }
+    },
   );
 
   ScrollTrigger.create({
@@ -1272,7 +1274,7 @@ function processAnimation(container) {
       const number = item.querySelector(".process_number_wrap");
       const line = item.querySelector(".process_item_line line");
       const content = item.querySelectorAll(
-        ".process_item_title, .process_item_desc"
+        ".process_item_title, .process_item_desc",
       );
 
       if (line) gsap.set(line, { clipPath: "inset(0 100% 0 0)" });
@@ -1295,7 +1297,7 @@ function processAnimation(container) {
       const number = item.querySelector(".process_number_wrap");
       const line = item.querySelector(".process_item_line line");
       const content = item.querySelectorAll(
-        ".process_item_title, .process_item_desc"
+        ".process_item_title, .process_item_desc",
       );
 
       if (index === 0) {
@@ -1315,14 +1317,14 @@ function processAnimation(container) {
               duration: 0.8,
               ease: "power1.inOut",
             },
-            "<"
+            "<",
           );
         }
       } else {
         tl.to(number, { scale: 1, duration: 0.5, ease: "back.out(1.7)" }).to(
           content,
           { y: 0, opacity: 1, duration: 0.6, stagger: 0.2, ease: "power2.out" },
-          "-=0.2"
+          "-=0.2",
         );
 
         if (line) {
@@ -1333,7 +1335,7 @@ function processAnimation(container) {
               duration: 0.8,
               ease: "power1.inOut",
             },
-            "<"
+            "<",
           );
         }
       }
@@ -1342,7 +1344,7 @@ function processAnimation(container) {
     return () => {
       items.forEach((item) => {
         const elems = item.querySelectorAll(
-          ".process_number_wrap, .process_item_line line, .process_item_title, .process_item_desc"
+          ".process_number_wrap, .process_item_line line, .process_item_title, .process_item_desc",
         );
         gsap.set(elems, { clearProps: "all" });
       });
@@ -1473,7 +1475,7 @@ function formValidation(container) {
       try {
         showError("Verifying domain...", errorElement);
         const response = await fetch(
-          `https://dns.google/resolve?name=${domain}&type=MX`
+          `https://dns.google/resolve?name=${domain}&type=MX`,
         );
         const data = await response.json();
 
@@ -1482,14 +1484,14 @@ function formValidation(container) {
         } else {
           showError(
             "The email domain appears to be invalid or non-existent.",
-            errorElement
+            errorElement,
           );
         }
       } catch (error) {
         console.error("Error during domain validation:", error);
         showError(
           "Validation failed. Please check your connection.",
-          errorElement
+          errorElement,
         );
       }
     }
@@ -1503,7 +1505,7 @@ function formValidation(container) {
       ) {
         console.error(
           "Could not find the error message element for an email input.",
-          emailInput
+          emailInput,
         );
         return;
       }
@@ -1539,7 +1541,7 @@ function formValidation(container) {
       ) {
         console.error(
           "Could not find the error message element for a telephone input.",
-          telInput
+          telInput,
         );
         return;
       }
@@ -1563,7 +1565,7 @@ function formValidation(container) {
         if (originalValue.length > 0 && !/^\+?\d+$/.test(originalValue)) {
           showError(
             "Only numbers and a leading + are allowed.",
-            errorMsgElement
+            errorMsgElement,
           );
         } else {
           hideError(errorMsgElement);
@@ -1649,20 +1651,20 @@ function initModalBasic(container) {
 
   function openModal(modalTargetName) {
     const target = container.querySelector(
-      `[data-modal-target="${modalTargetName}"]`
+      `[data-modal-target="${modalTargetName}"]`,
     );
     const modal = container.querySelector(
-      `[data-modal-name="${modalTargetName}"]`
+      `[data-modal-name="${modalTargetName}"]`,
     );
 
     if (!target || !modal) return;
 
     modalTargets.forEach((target) =>
-      target.setAttribute("data-modal-status", "not-active")
+      target.setAttribute("data-modal-status", "not-active"),
     );
 
     modals.forEach((modal) =>
-      modal.setAttribute("data-modal-status", "not-active")
+      modal.setAttribute("data-modal-status", "not-active"),
     );
 
     target.setAttribute("data-modal-status", "active");
@@ -1677,11 +1679,11 @@ function initModalBasic(container) {
 
   function closeAllModals() {
     modalTargets.forEach((target) =>
-      target.setAttribute("data-modal-status", "not-active")
+      target.setAttribute("data-modal-status", "not-active"),
     );
 
     modals.forEach((modal) =>
-      modal.setAttribute("data-modal-status", "not-active")
+      modal.setAttribute("data-modal-status", "not-active"),
     );
 
     if (modalGroup) {
@@ -1725,4 +1727,27 @@ function initModalBasic(container) {
   if (modalFromUrl) {
     openModal(modalFromUrl);
   }
+}
+
+function renderRecaptcha(container) {
+  const recaptchas = container.querySelectorAll(".g-recaptcha");
+
+  if (!recaptchas.length) return;
+  if (!window.grecaptcha || typeof grecaptcha.render !== "function") return;
+
+  grecaptcha.ready(() => {
+    recaptchas.forEach((el) => {
+      if (el.dataset.rendered === "true") return;
+
+      const sitekey = el.getAttribute("data-sitekey");
+      if (!sitekey) return;
+
+      try {
+        grecaptcha.render(el, { sitekey });
+        el.dataset.rendered = "true";
+      } catch (err) {
+        console.warn("[reCAPTCHA] render failed:", err);
+      }
+    });
+  });
 }
