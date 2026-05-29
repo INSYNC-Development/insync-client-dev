@@ -26,6 +26,18 @@ let durationDefault = 0.6;
 CustomEase.create("osmo", "0.625, 0.05, 0, 1");
 gsap.defaults({ ease: "osmo", duration: durationDefault });
 
+// -----------------------------------------------------------------------------
+// initCustomTabs(container)
+// -----------------------------------------------------------------------------
+// Re-attaches custom click handlers to every Webflow tab group (.w-tabs) inside
+// the given container. Webflow ships its own tab logic, but those listeners
+// belong to the old DOM and stop working after a Barba page swap, so we rebind
+// them here. On click the handler toggles the active classes + ARIA attributes
+// on the matching link/pane and updates the URL hash to the tab anchor.
+// A "data-customTabInit" flag is set on each link so the handler is never
+// bound twice when the same page is re-entered.
+// To target different markup, change the ".w-tabs" / ".w-tab-link" /
+// ".w-tab-pane" selectors below (these are Webflow's defaults).
 function initCustomTabs(container = document) {
   const tabGroups = container.querySelectorAll(".w-tabs");
 
@@ -72,6 +84,15 @@ function initCustomTabs(container = document) {
   });
 }
 
+// -----------------------------------------------------------------------------
+// reinitWebflowComponents(container)
+// -----------------------------------------------------------------------------
+// After Barba swaps the page DOM, Webflow's own systems (Interactions/IX2,
+// Lottie players, tab redraw) need to be kicked off again on the new
+// container — otherwise scroll triggers and hover animations silently die.
+// This calls Webflow.destroy() then ready() to reset internal state, re-inits
+// IX2 and Lottie, and on the next animation frame repairs the tab ARIA markup
+// and rebinds our custom tab handlers. Run this exactly once per page enter.
 function reinitWebflowComponents(container) {
   if (!window.Webflow) return;
 
@@ -94,6 +115,16 @@ function reinitWebflowComponents(container) {
   });
 }
 
+// -----------------------------------------------------------------------------
+// repairWebflowTabs(container)
+// -----------------------------------------------------------------------------
+// After Barba swaps DOM, Webflow's auto-generated tab IDs and ARIA wiring are
+// stale (IDs collide between old/new containers or get lost entirely). This
+// rewrites every tab inside every ".w-tabs" group with a fresh ID, matching
+// aria-controls / aria-labelledby on the corresponding pane, and resets role
+// + aria-selected + tabindex so the tabs are accessible again.
+// Called automatically from reinitWebflowComponents() — you normally don't
+// need to call this directly.
 function repairWebflowTabs(container) {
   const tabsWraps = container.querySelectorAll(".w-tabs");
 
@@ -133,7 +164,20 @@ function repairWebflowTabs(container) {
 // -----------------------------------------
 // FUNCTION REGISTRY
 // -----------------------------------------
-
+//
+// Three init phases driven by the Barba lifecycle. Decide where new inits
+// belong based on WHEN they need to run:
+//   - initOnceFunctions()        runs ONCE per browser session (first load).
+//                                Put truly global setup here (e.g. Lenis).
+//                                Re-entering the same page will NOT re-run it.
+//   - initBeforeEnterFunctions() runs before the new page becomes visible.
+//                                Use for setup that must happen while the
+//                                page is still hidden (e.g. pre-scaling the
+//                                hero so the entrance animation lands right).
+//   - initAfterEnterFunctions()  runs after the new page is visible. This is
+//                                where per-page code is dispatched from
+//                                initfunction() at the bottom of this file.
+// Rule of thumb: new per-page inits go inside initfunction(), NOT here.
 function initOnceFunctions() {
   initLenis();
   if (onceFunctionsInitialized) return;
@@ -164,7 +208,23 @@ function initAfterEnterFunctions(next) {
 // -----------------------------------------
 // PAGE TRANSITIONS
 // -----------------------------------------
-
+//
+// Default "slide-up panel" transition used for the routes listed in
+// `allowedSlugs` further down (Barba init). Any route NOT in that list falls
+// back to the simpler fade transition in the next section.
+//
+// Barba calls these three functions in order:
+//   runPageOnceAnimation   first load only; just resets scroll + inline styles.
+//   runPageLeaveAnimation  old page slides up to -15vh while the panel rises
+//                          and the "next page name" label fades in.
+//   runPageEnterAnimation  new page rises from +15vh, panel slides off the
+//                          top of the screen, label fades out. Returns a
+//                          Promise that resolves once the page is settled.
+//
+// If you tweak duration values, keep the leave timing (0.8s) and the enter
+// pre-roll (1.25s) in sync — they're tuned to meet in the middle.
+// If reduced-motion is enabled (OS-level a11y setting), all three functions
+// short-circuit to instant swaps.
 function runPageOnceAnimation(next) {
   const tl = gsap.timeline();
 
@@ -345,7 +405,12 @@ function runPageEnterAnimation(next) {
 // -----------------------------------------
 // PAGE TRANSITIONS FADE
 // -----------------------------------------
-
+//
+// Fallback transition for any route NOT in `allowedSlugs`. Simpler than the
+// slide-up panel: the old page fades out, the new page fades in, and the H1
+// of the new page pops in with a slight upward motion. Same three-phase API
+// as the default transition above (once / leave / enter). Use this style when
+// adding pages that don't need the branded panel effect.
 function runPageOnceAnimationFade(next) {
   const tl = gsap.timeline();
 
@@ -440,7 +505,21 @@ function runPageEnterAnimationFade(next) {
 // -----------------------------------------
 // BARBA HOOKS + INIT
 // -----------------------------------------
-
+//
+// These hooks fire on EVERY page transition regardless of which transition
+// variant (slide-up or fade) runs. They handle the cross-cutting concerns
+// that aren't part of the visual animation itself:
+//   beforeEnter  pins the new container on top with fixed positioning so it
+//                can sit over the outgoing one, pauses Lenis, runs the
+//                "before enter" inits, applies the page theme (light/dark)
+//                from the next container's data-page-theme attribute.
+//   afterLeave   kills every active GSAP ScrollTrigger so they don't leak
+//                references to the destroyed DOM.
+//   enter        syncs the nav menu's active state to the new page (the nav
+//                lives outside Barba's container, so it isn't replaced).
+//   afterEnter   runs the "after enter" inits (i.e. all per-page code via
+//                initfunction()), then resizes Lenis and refreshes
+//                ScrollTrigger so measurements reflect the new layout.
 barba.hooks.beforeEnter((data) => {
   // Position new container on top
   gsap.set(data.next.container, {
@@ -483,6 +562,25 @@ barba.hooks.afterEnter((data) => {
   }
 });
 
+// -----------------------------------------------------------------------------
+// allowedSlugs + barba.init
+// -----------------------------------------------------------------------------
+// `allowedSlugs` is the whitelist of routes that get the branded slide-up
+// panel transition. Add new paths here when you want that transition on them.
+// Trailing slash matters: "/screens/" matches any subroute like /screens/abc;
+// without a trailing slash the match is exact (e.g. "/pricing" matches only
+// /pricing). The root "/" is special-cased to exact-match only — otherwise
+// it would match every URL.
+//
+// barba.init configures:
+//   - debug:           leave true while iterating, turn off in production.
+//   - timeout:         max ms Barba waits for a transition before bailing.
+//   - prevent:         skips Barba on links flagged with data-barba-prevent
+//                      and on Webflow tab links (so tab clicks don't trigger
+//                      a full page transition).
+//   - transitions[0]:  the slide-up panel; gated by `custom` returning true
+//                      only when the target slug is in allowedSlugs.
+//   - transitions[1]:  the fade fallback, used for everything else.
 const allowedSlugs = [
   "/", // The home page (exact match)
   "/venues",
@@ -569,6 +667,17 @@ barba.init({
 // GENERIC + HELPERS
 // -----------------------------------------
 
+// -----------------------------------------------------------------------------
+// themeConfig + applyThemeFrom(container)
+// -----------------------------------------------------------------------------
+// The site supports light and dark page themes. Each page declares its theme
+// via `data-page-theme="light|dark"` on its top-level container.
+// applyThemeFrom() reads that attribute and propagates the matching theme
+// tokens to three places: the <body> (data-page-theme), the nav element
+// (data-theme-nav), and the transition overlay (data-theme-transition).
+// CSS then targets those data attributes to swap colors.
+// To add a new theme: add an entry to themeConfig and define matching CSS
+// rules for the new data-page-theme value.
 const themeConfig = {
   light: {
     nav: "dark",
@@ -596,6 +705,17 @@ function applyThemeFrom(container) {
   }
 }
 
+// -----------------------------------------------------------------------------
+// initLenis()
+// -----------------------------------------------------------------------------
+// Sets up Lenis smooth-scrolling. ONE instance, shared across the whole site.
+// Called once from initOnceFunctions(). Tuning knobs:
+//   - lerp:            how soft the scroll feels (lower = smoother + slower,
+//                      higher = snappier). 0.165 is the current default.
+//   - wheelMultiplier: scales mousewheel speed. Bump up for faster scroll.
+// If ScrollTrigger is loaded, Lenis's scroll event is piped into it so all
+// GSAP scroll triggers stay in sync with the smooth scroll.
+// Do NOT call this more than once — the early return guards against that.
 function initLenis() {
   if (lenis) return; // already created
   if (!hasLenis) return;
@@ -616,6 +736,13 @@ function initLenis() {
   gsap.ticker.lagSmoothing(0);
 }
 
+// -----------------------------------------------------------------------------
+// resetPage(container)
+// -----------------------------------------------------------------------------
+// Called at the end of every page transition. Scrolls back to the top, clears
+// the fixed-positioning inline styles that beforeEnter set, and restarts
+// Lenis. If a page lands scrolled to the wrong position or stays stuck under
+// the nav, the bug is usually here or in Lenis timing.
 function resetPage(container) {
   window.scrollTo(0, 0);
   gsap.set(container, { clearProps: "position,top,left,right" });
@@ -626,6 +753,14 @@ function resetPage(container) {
   }
 }
 
+// -----------------------------------------------------------------------------
+// debounceOnWidthChange(fn, ms)
+// -----------------------------------------------------------------------------
+// Utility: returns a debounced version of `fn` that only fires if the viewport
+// WIDTH actually changed during the debounce window. Used to skip pointless
+// layout re-inits on iOS Safari's vertical-only resize events (when the URL
+// bar shows/hides). Wrap any function that recomputes layout (swiper re-init,
+// scroll position recalc, etc.) with this to avoid jank on mobile.
 function debounceOnWidthChange(fn, ms) {
   let last = innerWidth,
     timer;
@@ -640,6 +775,19 @@ function debounceOnWidthChange(fn, ms) {
   };
 }
 
+// -----------------------------------------------------------------------------
+// initBarbaNavUpdate(data)
+// -----------------------------------------------------------------------------
+// Keeps the nav menu's "current page" indicator in sync during Barba swaps.
+// The nav element lives OUTSIDE Barba's container, so it isn't replaced when
+// pages swap — meaning aria-current and the active class would otherwise
+// stay frozen on the previous link. This function reads the incoming page's
+// HTML, finds every nav item flagged with `data-barba-update`, and copies
+// the aria-current + class list onto the matching live nav element.
+//
+// Markup contract: every nav item that should sync needs `data-barba-update`
+// on BOTH the current DOM and the matching item in the new page's HTML.
+// Items are paired by index, so the order must match between pages.
 function initBarbaNavUpdate(data) {
   var tpl = document.createElement("template");
   tpl.innerHTML = data.next.html.trim();
