@@ -819,6 +819,36 @@ function initBarbaNavUpdate(data) {
 /* ─────────────────────────────────────────
                 Number Odometer
    ───────────────────────────────────────── */
+// -----------------------------------------------------------------------------
+// initNumberOdometer(container)
+// -----------------------------------------------------------------------------
+// Builds a slot-machine-style "rolling number" animation for any element
+// inside a [data-odometer-group]. When the group scrolls into view, each
+// number animates from its start value (or 0) up to the final number shown
+// in the text content, rolling each digit independently like an old odometer.
+//
+// MARKUP CONTRACT (set these in Webflow):
+//   [data-odometer-group]                       wraps a set of numbers that
+//                                               should animate together.
+//   [data-odometer-element]                     the actual number text node.
+//   [data-odometer-start="42"]    (optional)    start value (default 0).
+//   [data-odometer-duration="3"]  (optional)    roll duration per element.
+//   [data-odometer-grow="true|false"] (opt.)    reveal new digits as it grows.
+//   [data-odometer-stagger="0.1"]   (optional)  delay between elements.
+//   [data-odometer-stagger-order]   (optional)  "left" | "right" | "random".
+//   [data-odometer-trigger-start]   (optional)  ScrollTrigger start (default "top 80%").
+//
+// TUNING — change inside the `defaults` object below:
+//   duration         seconds per number to roll
+//   elementStagger   delay between adjacent numbers in a group
+//   digitStagger     delay between adjacent digits within a number
+//   digitCycles      how many times each digit cycles 0-9 before landing
+//   triggerStart     where in viewport the animation starts
+//
+// RETURNS: a programmatic `updateOdometer(el, newText)` function — call it
+// later to re-animate the same element to a new number without re-scrolling.
+//
+// Respects prefers-reduced-motion (skips animation entirely).
 function initNumberOdometer(container) {
   const groups = container.querySelectorAll("[data-odometer-group]");
   if (!groups.length) return; // Early return if no odometers found
@@ -1215,6 +1245,25 @@ function initNumberOdometer(container) {
    Works with Barba
 ───────────────────────────────────────── */
 
+// -----------------------------------------------------------------------------
+// initMainHeroVideoControl(container)
+// -----------------------------------------------------------------------------
+// Wires up the custom play/pause toggle for the homepage's main hero video.
+// Behaviour:
+//   1. Mirrors the play/pause icon to the video's real state, even if play
+//      state changes from somewhere else (autoplay, end of clip, etc.) —
+//      hooks into the native "play" and "pause" events for reliability.
+//   2. The button click manually toggles the video.
+//   3. Tries to autoplay 100ms after init. If the browser blocks autoplay
+//      (Safari iOS, etc.), it falls back to playing on the FIRST user
+//      interaction anywhere in the container (touch or click).
+//
+// MARKUP CONTRACT:
+//   .main_hero_visual_video > video       the video element itself.
+//   [data-main-hero="control-btn"]        the toggle wrapper (catches clicks).
+//   .button_toggle_play / .button_toggle_pause   the two icon states.
+//
+// To target a different hero or icon set, change the four selectors above.
 function initMainHeroVideoControl(container) {
   const video = container.querySelector(".main_hero_visual_video video");
   // Listening on the wrapper is safer to catch all clicks inside the button area
@@ -1300,6 +1349,17 @@ function initMainHeroVideoControl(container) {
   }, 100);
 }
 
+// -----------------------------------------------------------------------------
+// initStartVideoControl(container)
+// -----------------------------------------------------------------------------
+// Same play/pause + autoplay-with-fallback logic as initMainHeroVideoControl,
+// but targeted at the "start" section video (the second hero further down
+// the page). The two functions are intentionally kept separate so each can
+// be tuned independently if needed — they use different markup attributes:
+//   [data-start-el="video"] > video       the video element.
+//   [data-start-el="control-btn"]         the toggle wrapper.
+// If both videos should ever behave identically, this can be refactored into
+// a single function that takes a selector prefix.
 function initStartVideoControl(container) {
   const video = container.querySelector("[data-start-el='video'] video");
   // Listening on the wrapper is safer to catch all clicks inside the button area
@@ -1388,7 +1448,25 @@ function initStartVideoControl(container) {
 // -----------------------------------------
 // HERO PREPARATION HELPERS
 // -----------------------------------------
-
+//
+// The hero video starts the page scaled UP and centered, then scrolls down
+// into its natural 1:1 size as the user scrolls (see initHeroAnimation
+// further below). To avoid a visible "pop" on page load, the scaling has to
+// be applied BEFORE the page becomes visible — that's what prepareHeroScale
+// does (called from initBeforeEnterFunctions).
+//
+// The four helpers below compute the right scale + Y offset to make the hero
+// behave like `background-size: cover`, then build the CSS matrix() value:
+//   getCoverScale(el)   how much to scale so the element covers the viewport.
+//                       The multipliers (1.6 on mobile, 1.3 on desktop) are
+//                       tuned by eye — change these if the scaled hero looks
+//                       too small or too large at any breakpoint.
+//   getHeroMatrixY(el)  the vertical offset to keep the scaled hero centered.
+//                       Tweak the formula here if the hero starts too high or
+//                       too low on first paint.
+//   getHeroMatrix(...)  formats the scale + Y into a CSS matrix() transform.
+//   prepareHeroScale()  applies the initial transform + opacity to the hero
+//                       container BEFORE it becomes visible.
 function getCoverScale(el) {
   if (!el) return 1;
 
@@ -1446,6 +1524,32 @@ function prepareHeroScale(container) {
 /* ─────────────────────────────────────────
                 Hero Animation
    ───────────────────────────────────────── */
+// -----------------------------------------------------------------------------
+// initHeroAnimation(container)
+// -----------------------------------------------------------------------------
+// The main hero scroll animation on the homepage. As the user scrolls down
+// the page, this scrubs through a GSAP timeline that:
+//   1. Fades + blurs out the hero foreground content.
+//   2. Collapses the blur layer's height to 0.
+//   3. Scales the hero video from "cover" size back down to its natural 1:1
+//      (using the matrix computed by the hero preparation helpers above).
+//   4. Fades the CTA button group out at 20% into the scale.
+//   5. Fades the intro section in at the 50% mark of the scrub.
+// When the timeline completes it triggers initStartAnimation() to wire up
+// the second hero section below.
+//
+// MARKUP CONTRACT (Webflow class names):
+//   .main_hero_wrap                  ScrollTrigger anchor.
+//   .main_hero_scale_container       element that gets scaled / matrix-transformed.
+//   .main_hero_section               foreground that fades+blurs out.
+//   .main_hero_intro                 intro that fades in.
+//   .main_hero_blur_wrap             blur layer that collapses.
+//   .main_hero_btn_wrap              CTA button group that fades out.
+//
+// TUNING:
+//   scrub: 1.2          how much "smoothing" the scrub has (lower = snappier).
+//   duration: 0.7       proportional speed of the scale phase (relative to scrub).
+//   "power2.in/inOut"   easing per phase — swap for any GSAP ease.
 function initHeroAnimation(container) {
   const section = container.querySelector(".main_hero_wrap");
   const scaleContainer = container.querySelector(".main_hero_scale_container");
@@ -1533,6 +1637,30 @@ function initHeroAnimation(container) {
                 Start Animation
    ───────────────────────────────────────── */
 //  This function is called after the hero animation completed to fix the issue on load when the hero animation scaling
+// -----------------------------------------------------------------------------
+// initStartAnimation(container)
+// -----------------------------------------------------------------------------
+// Sister to initHeroAnimation, but for the SECOND hero section ("start"
+// section, lower on the page). Triggered automatically by initHeroAnimation's
+// onComplete so the ScrollTrigger only registers once the main hero is done
+// (avoiding measurement bugs from the first hero's transform).
+//
+// Same scrub-scale-fade pattern as the main hero, but uses gsap.matchMedia
+// so the trigger start point can differ between mobile (top top+=15%) and
+// desktop (top top-=10%). Reduced-motion users get no animation.
+//
+// MARKUP CONTRACT:
+//   .start_wrap                ScrollTrigger anchor.
+//   .start_scale_container     element that gets scaled.
+//   .start_section             foreground that fades+blurs out.
+//   .start_intro               intro that fades in.
+//   .start_blur_wrap           blur layer that collapses.
+//   .start_btn_wrap            CTA button group that fades out.
+//
+// TUNING:
+//   breakPoint: 768            mobile/desktop split.
+//   start "top top+=15%"       trigger start on mobile.
+//   start "top top-=10%"       trigger start on desktop.
 function initStartAnimation(container) {
   const section = container.querySelector(".start_wrap");
   const scaleContainer = container.querySelector(".start_scale_container");
@@ -1641,6 +1769,25 @@ function initStartAnimation(container) {
 /* ─────────────────────────────────────────
                 Video Animation
    ───────────────────────────────────────── */
+// -----------------------------------------------------------------------------
+// initVideoAnimation(container)
+// -----------------------------------------------------------------------------
+// Generic "play video when it appears" handler. Used for inline videos
+// scattered through the site (case studies, feature highlights, etc.) that
+// should NOT autoplay on page load but should start when scrolled into view
+// or hovered.
+//
+// MARKUP CONTRACT:
+//   [data-video-anim-trigger]                       wraps each video tile.
+//   [data-video-animation="loop|scroll|scroll-hover"]   set on the <video>
+//                                                   element itself; picks
+//                                                   the behaviour:
+//     "loop"          starts immediately and loops forever (background videos).
+//     "scroll"        plays ONCE when the tile enters the viewport (top 80%).
+//     "scroll-hover"  same as "scroll" + also restarts on mouseenter.
+//
+// All variants reset currentTime to 0 before playing so the video always
+// starts from frame 0, no matter how the page was navigated to.
 function initVideoAnimation(container) {
   const processItems = container.querySelectorAll("[data-video-anim-trigger]");
   if (!processItems.length) return; // Early return if no video items found
