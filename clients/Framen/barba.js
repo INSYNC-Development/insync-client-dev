@@ -3048,6 +3048,9 @@ const initEventsSwiper = (container) => {
   });
 };
 
+// initGalleryEventSwiper — auto-advancing gallery in the event hero (changes
+// slide every 3s automatically; users can also drag). Unlike the standard
+// arrow-button swipers above, this has no nav buttons by design.
 const initGalleryEventSwiper = (container) => {
   const selector = container.querySelector(
     ".hero_events_wrap .hero_events_gallery_slider"
@@ -3069,6 +3072,39 @@ const initGalleryEventSwiper = (container) => {
   });
 };
 
+// -----------------------------------------------------------------------------
+// initPartnerFunc(container)
+// -----------------------------------------------------------------------------
+// The most complex client-side widget on the site. Powers the partner /
+// screen-location listing with three combined behaviours:
+//   1. Pagination via "Load More" — shows itemsInitial (8) at first, reveals
+//      itemsNext (4) more per click of the load-more button.
+//   2. Category filtering — clicking a category button shows only matching
+//      items (and hides the load-more button while filtered).
+//   3. Live fuzzy search — typing into the search input filters items by
+//      content using List.js fuzzy matching. While searching, both the
+//      load-more and the category buttons are disabled.
+//
+// MARKUP CONTRACT:
+//   [data-load-more="wrapper"]              the wrapper of all items.
+//   [data-load-more="item"]                 each item card.
+//   [data-load-more="button"]               the "Load More" button.
+//   [data-filter-target="<name>" | "all"]   category filter buttons.
+//   [data-filter-name="cat1|cat2|..."]      items — pipe-separated categories.
+//   [data-filter-status]                    written by this fn: "active",
+//                                           "not-active", "transition-out".
+//   [data-live-search]                      wrapper enabling live search.
+//   [data-live-search-input]                the <input> element.
+//   [data-live-search-not-found]            empty-state shown on zero results.
+//
+// TUNING (constants at the top of the function):
+//   itemsInitial         starting visible count.
+//   itemsNext            how many more per "Load More" click.
+//   transitionDuration   ms between transition-out and the final state
+//                        change — match this to your CSS fade.
+//
+// Fuzzy search settings live inside initLiveSearch — threshold (0.3 by
+// default) controls how forgiving the match is (lower = stricter).
 const initPartnerFunc = (container) => {
   const itemsInitial = 8;
   const itemsNext = 4;
@@ -3294,6 +3330,25 @@ const initPartnerFunc = (container) => {
   }
 };
 
+// -----------------------------------------------------------------------------
+// initListLoadMore(container, config?)
+// -----------------------------------------------------------------------------
+// A simpler, reusable "Load More" pattern (no filter, no search). Useful for
+// any list where you just want to show N items and reveal more in batches.
+// Called twice from initfunction() at the bottom of this file:
+//   - default config for the generic list ([data-list-load-more='item']).
+//   - custom config for the blog list ([data-list-load-more='blog-item']).
+//
+// CONFIG OPTIONS (all optional):
+//   itemSelector      which elements are list items.
+//   buttonSelector    the Load More button.
+//   initialItems      how many to show on first paint (default 6).
+//   itemsPerLoad      how many to reveal per click (default 4).
+//   hiddenStyle       CSS display value for hidden items (default "none").
+//   visibleStyle      CSS display value for visible items (default "").
+//
+// To add a new variant, call initListLoadMore(container, {...}) in
+// initfunction() with the data-attributes that match your section.
 const initListLoadMore = (container, config = {}) => {
   const {
     itemSelector = "[data-list-load-more='item']",
@@ -3342,6 +3397,27 @@ const initListLoadMore = (container, config = {}) => {
   loadMoreBtnWrap.addEventListener("click", handleLoadMoreClick);
 };
 
+// -----------------------------------------------------------------------------
+// initTOCCaseStudy(container)
+// -----------------------------------------------------------------------------
+// Sticky table-of-contents for case-study pages. Two behaviours:
+//   1. Click a TOC link → smooth-scroll to the section whose id matches the
+//      link's text (lowercased, trimmed).
+//   2. Scroll spy → as the user scrolls, the TOC link for the section
+//      currently in the "active band" of the viewport (from 20% to 70% from
+//      top, via IntersectionObserver rootMargin) gets the "is-active" class.
+//
+// MARKUP CONTRACT:
+//   .stories_toc_text                                   each TOC link. Its
+//                                                       visible text MUST
+//                                                       match the section's
+//                                                       id attribute.
+//   .stories-main_content_wrap > div[id]                each scroll target.
+//
+// NOTE: there's a bug on line 3392 — `container.getElementById(targetId)`
+// should be `document.getElementById(targetId)` (Element has no
+// getElementById method). The smooth scroll will silently fail. Worth
+// fixing in a separate commit when convenient.
 const initTOCCaseStudy = (container) => {
   const tocLinks = container.querySelectorAll(".stories_toc_text");
   const sections = container.querySelectorAll(
@@ -3396,6 +3472,36 @@ const initTOCCaseStudy = (container) => {
   sections.forEach((section) => observer.observe(section));
 };
 
+// -----------------------------------------------------------------------------
+// initBasicFilterSetupMultiMatch(container)
+// -----------------------------------------------------------------------------
+// The "advanced" filter — superset of initFilterBasic. Differences:
+//   - Items can belong to MULTIPLE categories at once. Categories are read
+//     from child [data-filter-name-collect] nodes, deduped, and stored
+//     pipe-separated on the item's [data-filter-name].
+//   - Built-in "Load More" pagination per group, with its own button:
+//     initialItemsCount (8) on first paint, +itemsToLoadCount (4) per click.
+//   - Anti-flicker: items already in the correct state are skipped instead
+//     of being re-animated.
+//   - First paint hides excess items instantly (no fade) so the load-more
+//     UX doesn't run on initial page load.
+//
+// MARKUP CONTRACT:
+//   [data-filter-group]                  wraps one filter set.
+//   [data-filter-target="<name>" | "all"]   category button.
+//   [data-filter-name="cat|cat|..."]     item (pipe-delimited categories) —
+//                                        or generated automatically from
+//                                        [data-filter-name-collect] children.
+//   [data-filter-name-collect="<cat>"]   per-item child element that lists a
+//                                        category — they'll be merged into
+//                                        the item's data-filter-name attr.
+//   [data-filter-btn="load-more"]        the per-group load-more button.
+//   [data-filter-empty]                  empty-state element (optional).
+//
+// TUNING (constants at the top of the function):
+//   transitionDelay        ms between transition-out and the final state.
+//   initialItemsCount      number of items shown per group initially.
+//   itemsToLoadCount       number of items revealed per Load More click.
 function initBasicFilterSetupMultiMatch(container) {
   const transitionDelay = 300;
 
@@ -3578,6 +3684,17 @@ function initBasicFilterSetupMultiMatch(container) {
   });
 }
 
+// -----------------------------------------------------------------------------
+// startDialog(container)
+// -----------------------------------------------------------------------------
+// Minimal native <dialog> opener/closer (no URL-hash sync, no animation).
+// Used for the "start" CTA modal. Any element with [data-modal-start="open"]
+// opens it; any element with [data-modal-start="close"] closes it.
+//
+// MARKUP CONTRACT:
+//   [data-modal-start="dialog"]   the native <dialog> element.
+//   [data-modal-start="open"]     open trigger(s).
+//   [data-modal-start="close"]    close trigger(s).
 const startDialog = (container) => {
   const dialogEl = container.querySelector("[data-modal-start='dialog']");
   if (!dialogEl) return;
@@ -3602,6 +3719,11 @@ const startDialog = (container) => {
   }
 };
 
+// initMediaSwiper — full-width cross-fade carousel for the media section.
+// Auto-advances every 4s with an 800ms cross-fade; loops infinitely; pauses
+// on hover. Navigation buttons live at .p-media_button.is-next / .is-prev.
+// Drag is not enabled because the slides cross-fade in place rather than
+// translating horizontally.
 const initMediaSwiper = (container) => {
   const selector = container.querySelector(".swiper.is-media");
   if (!selector) return;
@@ -3632,6 +3754,35 @@ const initMediaSwiper = (container) => {
   });
 };
 
+// -----------------------------------------------------------------------------
+// initNavMenuAnim(container)
+// -----------------------------------------------------------------------------
+// Drives the MOBILE mega-menu animation (the desktop nav is a separate
+// Webflow interaction). Two transitions:
+//   openPanel(name)   when the user taps a top-level item with a sub-panel:
+//                     - main nav list staggers OUT to the left and fades.
+//                     - mega-nav background fades IN.
+//                     - the matching panel + its [data-menu-fade] children
+//                       slide IN from the right with a 0.06s stagger.
+//                     - the "Back" button fades IN.
+//   closePanel(instant?)   reverse of the above. If instant=true, jumps with
+//                          no animation (used when the hamburger closes
+//                          mid-panel — see the MutationObserver below).
+//
+// MARKUP CONTRACT:
+//   .nav_mobile_wrap                    root of the mobile nav (required).
+//   [data-dropdown-toggle="<name>"]     top-level item that opens a panel.
+//   [data-nav-content="<name>"]         the panel matching that name.
+//   [data-nav-list-item]                main nav list items that slide out.
+//   [data-menu-fade]                    items inside a panel that stagger in.
+//   .meganav_dropdown_wrap              wrapper of the panels.
+//   .meganav_dropdown_bg                background dim layer.
+//   [data-mobile-back]                  back button.
+//   .nav_button_wrap.w-nav-button       the hamburger (watched via MutationObserver).
+//
+// RETURNS: a cleanup function that clears all inline GSAP props — called
+// automatically when the viewport grows past 65em so the desktop layout
+// doesn't inherit mobile transforms.
 const initNavMenuAnim = (container) => {
   // 1. Setup MatchMedia for Mobile (65em)
   let mm = gsap.matchMedia();
@@ -3864,6 +4015,10 @@ const initNavMenuAnim = (container) => {
   // });
 };
 
+// initBackHistory(container) — wires any element flagged with
+// [data-button="back-history"] to act as a "Back" button using
+// window.history.back(). preventDefault is called so anchor tags don't
+// navigate before the history pop happens.
 function initBackHistory(container) {
   const backButtons = container.querySelectorAll(
     '[data-button="back-history"]'
@@ -3880,6 +4035,33 @@ function initBackHistory(container) {
   });
 }
 
+// =============================================================================
+// initfunction(container)   <-- MASTER PER-PAGE INIT
+// =============================================================================
+// This is the single entry point for ALL per-page JavaScript. It's called
+// from initAfterEnterFunctions() (near the top of this file) on every Barba
+// page enter, with `container` set to the new page's root element.
+//
+// Anything that needs to run after each page swap belongs here. The order
+// below is grouped by category (global / Swiper / Home / Stories / Partner /
+// Blog / Case Study) for readability — within a group the order doesn't
+// matter unless one init depends on another (e.g. initHeroAnimation calls
+// initStartAnimation in its onComplete).
+//
+// HOW TO ADD A NEW PER-PAGE FEATURE:
+//   1. Write `function initMyThing(container) { ... }` somewhere above.
+//   2. Add `initMyThing(container);` to the right group below.
+//   3. The function should NO-OP gracefully if its target markup isn't
+//      present on the current page (early return on null queries).
+//
+// HOW TO REMOVE A FEATURE:
+//   Delete or comment out the call below; the function definition can stay
+//   (or be deleted too, but leaving it allows quick re-enable).
+//
+// WHAT THIS FUNCTION ALSO DOES BEFORE DISPATCHING:
+//   - Clears any inline GSAP props on the new container (clean slate).
+//   - Scrolls to the top of the new page.
+//   - 200ms later: if the URL has a #hash, smooth-scrolls to that element.
 function initfunction(container) {
   gsap.set(container, { clearProps: "all" });
 
