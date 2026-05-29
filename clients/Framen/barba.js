@@ -1845,6 +1845,15 @@ function initVideoAnimation(container) {
 /* ─────────────────────────────────────────
                 Telephone Validation
    ───────────────────────────────────────── */
+// -----------------------------------------------------------------------------
+// initTelephoneValidation(container)
+// -----------------------------------------------------------------------------
+// Live-cleans every <input type="tel"> in the container as the user types:
+// strips anything that isn't a digit, allows a single leading "+" for the
+// country code, and shows an inline error message if forbidden characters
+// were entered. The error message slot is expected to be the input's NEXT
+// sibling and must carry `data-input-form="error-msg"` — if it's missing
+// the input is skipped and a console error is logged.
 function initTelephoneValidation(container) {
   const telInputs = container.querySelectorAll('input[type="tel"]');
   if (!telInputs.length) return; // Early return if no telephone fields
@@ -1906,6 +1915,22 @@ function initTelephoneValidation(container) {
 /* ─────────────────────────────────────────
                 Email Validation
    ───────────────────────────────────────── */
+// -----------------------------------------------------------------------------
+// initEmailValidation(container)
+// -----------------------------------------------------------------------------
+// Validates every <input type="email"> in two phases:
+//   1. Shape check on blur: ensures the value contains exactly one "@" with
+//      something on each side. If not, shows an inline error.
+//   2. Domain MX-record check via Google's public DNS-over-HTTPS endpoint
+//      (https://dns.google/resolve). If the domain has no MX records (i.e.
+//      nobody can actually receive mail there), the error message says so.
+//
+// Same error-slot contract as initTelephoneValidation: the input's next
+// sibling must carry `data-input-form="error-msg"`.
+//
+// NOTE: the validation is on BLUR, not on input — users won't see errors
+// while still typing. If you change the API endpoint above, make sure the
+// response shape still has `data.Answer` for the success check to work.
 function initEmailValidation(container) {
   const emailInputs = container.querySelectorAll('input[type="email"]');
   if (!emailInputs.length) return; // Early return if no email fields
@@ -1983,6 +2008,13 @@ function initEmailValidation(container) {
 /* ─────────────────────────────────────────
                 Line Animation
    ───────────────────────────────────────── */
+// -----------------------------------------------------------------------------
+// initLineAnimation(container)
+// -----------------------------------------------------------------------------
+// Reveals horizontal divider lines by scaling them from 0% to 100% width
+// once they scroll into view (top 90%). Targets any element flagged with
+// `data-element="horizontal-line"`. Duration is 2s using the custom "osmo"
+// ease defined at the top of this file.
 function initLineAnimation(container) {
   const lines = container.querySelectorAll("[data-element='horizontal-line']");
   if (!lines.length) return; // Early return if no lines found
@@ -2006,6 +2038,22 @@ function initLineAnimation(container) {
 /* ─────────────────────────────────────────
                 Split Text Animation
    ───────────────────────────────────────── */
+// -----------------------------------------------------------------------------
+// initSplitTextAnimation(container)
+// -----------------------------------------------------------------------------
+// The "brand color sweep" headline effect. Each character of an element
+// flagged with `data-text-animation="split-text"` gets split into its own
+// <span>, then scroll-scrubbed through three color states:
+//   start  faded-out version of the final color (20% opacity blend).
+//   mid    the brand color from CSS variable --swatch--brand-500.
+//   end    the original text color (preserves <strong> color overrides).
+//
+// Uses GSAP's SplitText plugin. The character stagger is 0.05s; the scrub is
+// linear (ease: "none") between start at "top 80%" and end at "bottom 60%"
+// of the trigger element.
+//
+// To change the mid color: edit the CSS custom property --swatch--brand-500.
+// To change the timing curve: replace ease/start/end in the ScrollTrigger.
 function initSplitTextAnimation(container) {
   const targets = container.querySelectorAll(
     '[data-text-animation="split-text"]'
@@ -2066,6 +2114,26 @@ function initSplitTextAnimation(container) {
 /* ─────────────────────────────────────────
                 Scroll Direction Detect
    ───────────────────────────────────────── */
+// -----------------------------------------------------------------------------
+// initDetectScrollingDirection(container)
+// -----------------------------------------------------------------------------
+// Publishes the current scroll state as data-attributes on any element that
+// opts in. CSS can then react to them — e.g. fade the nav out while
+// scrolling down, slide it back in on scroll up, hide a banner while the
+// user is actively scrolling, etc.
+//
+// Attributes set:
+//   [data-scrolling-stopped]   "true" when no scroll for >150ms, "false" while moving.
+//   [data-scrolling-direction] "up" or "down" — updated only when scroll
+//                              changes by at least `threshold` (10px) to
+//                              ignore micro-jitter.
+//   [data-scrolling-started]   "true" once scrolled past `thresholdTop` (50px),
+//                              "false" while still near the top of the page.
+//
+// TUNING (locals near the top of the function):
+//   threshold        min px to count as a direction change.
+//   thresholdTop     min px from top of page to count as "started" scrolling.
+//   scrollStopDelay  ms of no scroll before we declare scrolling stopped.
 function initDetectScrollingDirection(container) {
   const scrollStoppedEls = container.querySelectorAll(
     "[data-scrolling-stopped]"
@@ -2153,6 +2221,27 @@ function initDetectScrollingDirection(container) {
 /* ─────────────────────────────────────────
                 Areas Swiper Animation
    ───────────────────────────────────────── */
+// -----------------------------------------------------------------------------
+// SWIPER CAROUSELS — shared pattern
+// -----------------------------------------------------------------------------
+// Several sections on the site use Swiper.js carousels with the same general
+// shape: a slider wrapper inside a section, "auto" slides per view, drag-able,
+// no loop, and arrow buttons wired to the section's `.button_arrow_wrap`
+// elements (distinguished by an inner SVG with data-wf--icon-arrow--direction).
+//
+// The init helpers below follow that pattern almost identically — only the
+// section's class prefix and a few Swiper options differ. Common knobs:
+//   slidesPerView    "auto" lets the slide's CSS width define count; set a
+//                    number to force N slides at once.
+//   spaceBetween     px gap between slides.
+//   loop             true wraps end-to-start; usually false on this site.
+//   navigation       arrow selectors — change these if the buttons move.
+//   effect           Swiper visual transition; only the testimonial swiper
+//                    overrides this to "creative" (3D stack).
+// To add a new swiper for a new section: copy initCaseSwiper, swap the
+// section class prefix, and add it to initfunction() at the bottom.
+
+// initAreasSwiper — horizontal carousel for the "Areas" section.
 const initAreasSwiper = (container) => {
   const selector = container.querySelector(".areas_wrap .areas_slider");
   if (!selector) return;
@@ -2175,6 +2264,27 @@ const initAreasSwiper = (container) => {
   });
 };
 
+// -----------------------------------------------------------------------------
+// initStickySteps(container)
+// -----------------------------------------------------------------------------
+// Drives the "sticky step indicator" UI: a column of steps where the one
+// closest to the viewport center is marked "active", the ones above it are
+// "before", and the ones below it are "after". CSS reads the status
+// attribute to highlight the current step.
+//
+// MARKUP CONTRACT:
+//   [data-sticky-steps-init]      wraps a step group (one per section).
+//   [data-sticky-steps-item]      each step inside the group.
+//   [data-sticky-steps-anchor]    optional inner element whose position is
+//                                 measured (defaults: not required, but if
+//                                 present its CENTER is matched against the
+//                                 viewport center to pick the active step).
+//   [data-sticky-steps-item-status]   set by this function to "active" |
+//                                     "before" | "after".
+//
+// Wiring is done via a ScrollTrigger that only fires updates while the group
+// is on-screen, so off-screen groups don't burn CPU. Updates also fire on
+// resize (ScrollTrigger refresh).
 function initStickySteps(container) {
   const groups = container.querySelectorAll("[data-sticky-steps-init]");
   if (!groups.length) return;
@@ -2233,6 +2343,35 @@ function initStickySteps(container) {
   });
 }
 
+// -----------------------------------------------------------------------------
+// initDraggableMarquee(container)
+// -----------------------------------------------------------------------------
+// A horizontal scrolling marquee (ticker) that auto-scrolls at a steady speed
+// AND can be flicked / dragged left or right by the user — after the drag,
+// it eases back to the resting auto-scroll speed.
+//
+// HOW IT WORKS:
+//   1. Reads the natural width of the list, calculates how many clones are
+//      needed to fill the wrapper width + 1 for buffer, clones the list.
+//   2. Runs an infinite GSAP tween that translates the collection by -listWidth
+//      every `duration` seconds. A modifier wraps the X back to 0 so the
+//      animation never visibly resets.
+//   3. Wraps the wrapper in a GSAP Observer that listens for pointer/touch
+//      drag, converts drag velocity into a timeScale boost, then eases back
+//      to the resting direction over 1s.
+//   4. Pauses the loop AND the observer while the marquee is scrolled off
+//      screen (via ScrollTrigger) so it doesn't waste cycles.
+//
+// MARKUP CONTRACT:
+//   [data-draggable-marquee-init]            the wrapper (gets cursor + obs).
+//   [data-draggable-marquee-collection]      direct child that holds the lists.
+//   [data-draggable-marquee-list]            the original list — gets cloned.
+//
+// TUNING via data-attributes on the wrapper:
+//   data-duration       seconds per full loop (default 20).
+//   data-multiplier     max timeScale on flick (default 40 — higher = wilder).
+//   data-sensitivity    velocity-to-timeScale factor (default 0.01).
+//   data-direction      "left" (default) or "right" — initial scroll direction.
 function initDraggableMarquee(container) {
   const wrappers = container.querySelectorAll("[data-draggable-marquee-init]");
 
@@ -2384,6 +2523,9 @@ function initDraggableMarquee(container) {
   });
 }
 
+// initFaqOpenFirstItem — opens the first FAQ item on page load so users
+// land on visible content instead of an empty accordion. Targets the first
+// element with class ".faq_item" inside the container.
 const initFaqOpenFirstItem = (container) => {
   // Target the first details element within the FAQ component
   const item = container.querySelector(".faq_item");
@@ -2400,6 +2542,19 @@ const iniDynamicYear = (container) => {
   });
 };
 
+// -----------------------------------------------------------------------------
+// initLottieNav(container)
+// -----------------------------------------------------------------------------
+// Loads a Lottie animation into every nav dropdown icon and plays it on
+// hover of the parent nav item (mouseenter starts the loop, mouseleave
+// stops it). Each icon's source file is read from the element's
+// `data-src` attribute (the .json or .lottie path).
+//
+// MARKUP CONTRACT:
+//   .nav_dropdown_type_icon div[data-src]    the Lottie container — the
+//                                            data-src value is the JSON path.
+//   .nav_dropdown_type_item                  the parent nav item that
+//                                            triggers play on hover.
 const initLottieNav = (container) => {
   const elements = container.querySelectorAll(
     ".nav_dropdown_type_icon div[data-src]"
@@ -2424,6 +2579,7 @@ const initLottieNav = (container) => {
   });
 };
 
+// initCaseSwiper — horizontal carousel for the "Case studies" section.
 const initCaseSwiper = (container) => {
   const selector = container.querySelector(".case_wrap .case_list_wrap");
   if (!selector) return;
@@ -2450,6 +2606,11 @@ const initCaseSwiper = (container) => {
   // });
 };
 
+// initTestimonialSwiper — one-slide-at-a-time carousel for testimonials with
+// a "creative" 3D effect (outgoing slide slides + scales away to -500 z,
+// incoming slide enters from the opposite side). The translate distances
+// (140%) are intentionally larger than 100% so adjacent slides clear the
+// viewport entirely before fading out.
 const initTestimonialSwiper = (container) => {
   const selector = container.querySelector(
     ".testimonial_wrap .testimonial_swiper"
@@ -2487,6 +2648,32 @@ const initTestimonialSwiper = (container) => {
   });
 };
 
+// -----------------------------------------------------------------------------
+// initFilterBasic(container)
+// -----------------------------------------------------------------------------
+// Drives a simple click-to-filter UI: click a category button, the matching
+// items stay visible, the rest hide. Includes a built-in fade-out / fade-in
+// transition (300ms) and an empty-state element that shows when no items
+// match the current filter.
+//
+// MARKUP CONTRACT:
+//   [data-filter-group]                  wraps one filter set (buttons + items).
+//   [data-filter-target="<name>"]        a filter button — "all" shows everything.
+//   [data-filter-name="<name>"]          an item — must match a button target.
+//   [data-filter-empty]                  optional empty state. Gets attribute
+//                                        "visible" when no items match, "hidden"
+//                                        otherwise — style with CSS.
+//   [data-filter-status]                 written by this function on items
+//                                        and buttons. Values: "active",
+//                                        "not-active", "transition-out".
+//   aria-pressed / aria-hidden           also kept in sync for a11y.
+//
+// TUNING: change `transitionDelay` (default 300ms) to match your CSS fade
+// duration — items use it as the delay before switching the active/inactive
+// status, so animations have time to finish.
+//
+// NOTE: there's a more advanced multi-match version (initBasicFilterSetupMultiMatch)
+// further down in this file that supports filtering by multiple criteria at once.
 function initFilterBasic(container) {
   const groups = container.querySelectorAll("[data-filter-group]");
   if (!groups.length) return;
@@ -2637,6 +2824,32 @@ function initFilterBasic(container) {
 //     });
 //   });
 // };
+// -----------------------------------------------------------------------------
+// initStoriesDialog(container)
+// -----------------------------------------------------------------------------
+// Powers the "stories" modal pop-ups (native <dialog>) with shareable URLs.
+// Each story can be opened by clicking either an <a> link (the SEO-friendly
+// route) or a plain <div> trigger, and the URL hash updates to "#<slug>" so
+// the open story can be shared, bookmarked, or reopened via direct link.
+//
+// MARKUP CONTRACT:
+//   [data-stories-item]                       wraps a single story card.
+//   [data-modal-stories="dialog"]             the native <dialog> element.
+//   [data-modal-stories="open-dialog"]        <div> open trigger (optional).
+//   [data-modal-stories="close-dialog"]       close button inside the dialog.
+//   a[data-stories-slug="<slug>"]             SEO link — its slug attr becomes
+//                                             the URL hash (e.g. #behind-the-scenes).
+//
+// BEHAVIOUR:
+//   - Clicking the <a> link opens the dialog instead of navigating (unless
+//     the user holds cmd/ctrl/shift/middle-click to open in a new tab).
+//   - Clicking the <div> trigger opens the dialog without touching navigation.
+//   - Closing (Esc key, backdrop click, or close button) clears the URL hash.
+//   - On page load, if the URL already has a matching hash, the dialog opens.
+//   - Browser Back/Forward syncs the dialog state to whatever the hash is.
+//
+// NOTE: the large commented-out block immediately above this is the previous
+// implementation kept for reference — do not delete without checking git history.
 const initStoriesDialog = (container) => {
   const items = container.querySelectorAll("[data-stories-item]");
   if (!items.length) return;
@@ -2760,6 +2973,7 @@ const initStoriesDialog = (container) => {
   });
 };
 
+// initMilestonesSwiper — horizontal carousel for the "Milestones" section.
 const initMilestonesSwiper = (container) => {
   const selector = container.querySelector(".milestones_slider");
   if (!selector) return;
@@ -2784,6 +2998,7 @@ const initMilestonesSwiper = (container) => {
   });
 };
 
+// initPressOtherSwiper — horizontal carousel for the "Other press" section.
 const initPressOtherSwiper = (container) => {
   const selector = container.querySelector(".press_other_slider");
   if (!selector) return;
@@ -2808,6 +3023,7 @@ const initPressOtherSwiper = (container) => {
   });
 };
 
+// initEventsSwiper — horizontal carousel for the "Events" section.
 const initEventsSwiper = (container) => {
   const selector = container.querySelector(".events_wrap .events_slider");
   if (!selector) return;
