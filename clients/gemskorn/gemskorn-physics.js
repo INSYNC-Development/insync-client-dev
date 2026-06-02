@@ -27,9 +27,8 @@
   const BRAND_SHAPES = {
     ring:     { color: '#EE4D5A' }, // Coral — closed donut (the `O` element)
     triangle: { color: '#F2B632' }, // Yellow — accent triangle
-    chevron:  { color: '#3047C7' }, // Blue — `>` arrow
+    chevron:  { color: '#3047C7' }, // Blue — `>` arrow, 120° opening (logo angle)
     halfRing: { color: '#C8197A' }, // Pink — hollow ∪ half-ring, 180° opening
-    square:   { color: '#2BA66E' }, // Green — solid square
   };
 
   // Reference width — shapes are defined at this width and scale proportionally.
@@ -40,31 +39,34 @@
   // Each entry: { kind, x, y, size, rotation? }
   // Color is auto-applied from BRAND_SHAPES — cannot be overridden per instance.
   // Multiple instances per kind are encouraged; just vary size + position.
+  // Sizes follow logo proportions: ring is the dominant anchor, half-ring
+  // a touch smaller, chevron medium-large, triangle small accent.
+  // Within each kind ALL instances share the same size — no random mix.
+  const SIZE_RING     = 160;
+  const SIZE_HALFRING = 130;
+  const SIZE_CHEVRON  = 140;
+  const SIZE_TRIANGLE = 65;
+
   const SHAPES = [
     // Coral closed rings (primary anchors) ────────────────────────────────────
-    { kind: 'ring',     x: 220,  y: 350, size: 175 },
-    { kind: 'ring',     x: 720,  y: 540, size: 130 },
-    { kind: 'ring',     x: 1240, y: 580, size: 100 },
+    { kind: 'ring',     x: 220,  y: 350, size: SIZE_RING },
+    { kind: 'ring',     x: 720,  y: 540, size: SIZE_RING },
+    { kind: 'ring',     x: 1240, y: 580, size: SIZE_RING },
 
     // Yellow triangles (accents) ──────────────────────────────────────────────
-    { kind: 'triangle', x: 360,  y: 100, size: 110 },
-    { kind: 'triangle', x: 950,  y: 80,  size: 70 },
-    { kind: 'triangle', x: 1370, y: 150, size: 50 },
+    { kind: 'triangle', x: 360,  y: 100, size: SIZE_TRIANGLE },
+    { kind: 'triangle', x: 950,  y: 80,  size: SIZE_TRIANGLE, rotation: 0.6 },
+    { kind: 'triangle', x: 1370, y: 150, size: SIZE_TRIANGLE, rotation: -0.4 },
 
     // Blue chevrons (secondary visual) ────────────────────────────────────────
-    { kind: 'chevron',  x: 100,  y: 540, size: 165 },
-    { kind: 'chevron',  x: 870,  y: 580, size: 140 },
-    { kind: 'chevron',  x: 1100, y: 200, size: 95 },
+    { kind: 'chevron',  x: 100,  y: 540, size: SIZE_CHEVRON },
+    { kind: 'chevron',  x: 870,  y: 580, size: SIZE_CHEVRON, rotation: 0.5 },
+    { kind: 'chevron',  x: 1100, y: 200, size: SIZE_CHEVRON, rotation: -1.2 },
 
     // Pink half-rings (accents) ───────────────────────────────────────────────
-    { kind: 'halfRing', x: 1340, y: 380, size: 175, rotation: 0.4 },
-    { kind: 'halfRing', x: 540,  y: 560, size: 125, rotation: -0.9 },
-    { kind: 'halfRing', x: 1010, y: 595, size: 90,  rotation: 2.4 },
-
-    // Green squares (mixed sizes) ─────────────────────────────────────────────
-    { kind: 'square',   x: 480,  y: 200, size: 110, rotation: 0.3 },
-    { kind: 'square',   x: 780,  y: 100, size: 75,  rotation: -0.5 },
-    { kind: 'square',   x: 1180, y: 100, size: 55 },
+    { kind: 'halfRing', x: 1340, y: 380, size: SIZE_HALFRING, rotation: 0.4 },
+    { kind: 'halfRing', x: 540,  y: 560, size: SIZE_HALFRING, rotation: -0.9 },
+    { kind: 'halfRing', x: 1010, y: 595, size: SIZE_HALFRING, rotation: 2.4 },
   ];
 
   // ── Matter loader ──────────────────────────────────────────────────────────
@@ -87,7 +89,8 @@
 
   // Ring: closed thick donut. Compound body of segment rectangles forming
   // a complete 360° circle. Centroid sits at the geometric center (no offset).
-  const RING_THICKNESS_RATIO = 0.45;
+  // Logo-tuned stroke thickness: hole ≈ 48% of outer diameter (was 63%).
+  const RING_THICKNESS_RATIO = 0.70;
   function buildRingBody(Matter, x, y, size, options) {
     const radius = size;
     const thickness = size * RING_THICKNESS_RATIO;
@@ -113,7 +116,8 @@
   // Half-ring: hollow ∪ shape, 180° opening. Compound body of segments along
   // the bottom semicircle (angles 0 to π in Y-down). Centroid is offset
   // toward the bulk of the arc — see HALF_RING_CY in renderer.
-  const HALF_RING_THICKNESS_RATIO = 0.45;
+  // Match the ring's stroke proportion for visual consistency.
+  const HALF_RING_THICKNESS_RATIO = 0.70;
   // Mean of sin(a) over [0, π] = 2/π ≈ 0.6366 — centroid offset on Y axis.
   const HALF_RING_CENTROID_OFFSET = 2 / Math.PI;
   function buildHalfRingBody(Matter, x, y, size, options) {
@@ -149,10 +153,10 @@
     return Matter.Bodies.fromVertices(x, y, [verts], options);
   }
 
-  // Chevron: `>` arrow pointing right at a 90° opening (right angle).
+  // Chevron: `>` arrow pointing right at a 120° opening (logo angle).
   // Compound body of two rectangle arms meeting at a tip.
   // Body centroid lands at (x, y); tip is offset right.
-  const CHEVRON_HALF_ANGLE = Math.PI / 4; // 45° → arms meet at 90°
+  const CHEVRON_HALF_ANGLE = Math.PI / 3; // 60° → arms meet at 120°
   const CHEVRON_THICKNESS_RATIO = 0.30;
   function buildChevronBody(Matter, x, y, size, options) {
     const halfAngle = CHEVRON_HALF_ANGLE;
@@ -168,17 +172,11 @@
     return Matter.Body.create({ parts: [top, bot], ...options });
   }
 
-  // Square: trivial.
-  function buildSquareBody(Matter, x, y, size, options) {
-    return Matter.Bodies.rectangle(x, y, size, size, options);
-  }
-
   const BUILDERS = {
     ring:     buildRingBody,
     triangle: buildTriangleBody,
     chevron:  buildChevronBody,
     halfRing: buildHalfRingBody,
-    square:   buildSquareBody,
   };
 
   // ── Renderers ──────────────────────────────────────────────────────────────
@@ -225,20 +223,23 @@
   }
 
   // Render the chevron as a single 6-point concave polygon with a mitered
-  // outer tip and a clean V-notch inside. Math assumes 90° opening (45° each).
+  // outer tip and a clean V-notch inside. Math handles arbitrary half-angle.
   function drawChevron(ctx, shape) {
     const L = shape.size * shape._scale;            // arm length (centerline)
     const t = L * CHEVRON_THICKNESS_RATIO;          // thickness
-    const r = Math.SQRT1_2;                          // 1/√2
+    const a = CHEVRON_HALF_ANGLE;
+    const cosA = Math.cos(a);
+    const sinA = Math.sin(a);
 
-    // Body centroid is at origin. Centerlines' apex is at (L*r/2, 0).
-    // Outer mitered tip extends past it by t*r; V-notch sits behind it by t*r.
-    const tipX   = L * r / 2 + t * r;
-    const notchX = L * r / 2 - t * r;
-    const farXo  = -L * r / 2 + t * r / 2;          // outer-far x
-    const farXi  = -L * r / 2 - t * r / 2;          // inner-far x
-    const farYo  =  L * r + t * r / 2;              // outer-far |y|
-    const farYi  =  L * r - t * r / 2;              // inner-far |y|
+    // Body centroid is at origin. Centerlines' apex is at (cosA*L/2, 0).
+    // Outer mitered tip extends past the apex by t/(2·sinA);
+    // V-notch sits behind the apex by the same.
+    const tipX   =  cosA * L / 2 + t / (2 * sinA);
+    const notchX =  cosA * L / 2 - t / (2 * sinA);
+    const farXo  = -cosA * L / 2 + t * sinA / 2;    // outer-far x
+    const farXi  = -cosA * L / 2 - t * sinA / 2;    // inner-far x
+    const farYo  =  sinA * L + t * cosA / 2;        // outer-far |y|
+    const farYi  =  sinA * L - t * cosA / 2;        // inner-far |y|
 
     ctx.beginPath();
     ctx.moveTo(tipX,   0);          // 1. outer mitered tip
@@ -251,17 +252,11 @@
     ctx.fill();
   }
 
-  function drawSquare(ctx, shape) {
-    const s = shape.size * shape._scale;
-    ctx.fillRect(-s / 2, -s / 2, s, s);
-  }
-
   const RENDERERS = {
     ring:     drawRing,
     triangle: drawTriangle,
     chevron:  drawChevron,
     halfRing: drawHalfRing,
-    square:   drawSquare,
   };
 
   // ── Custom Element ─────────────────────────────────────────────────────────
