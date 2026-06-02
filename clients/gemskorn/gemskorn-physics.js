@@ -229,9 +229,8 @@
 
   // Render the chevron as a single 6-point concave polygon with a mitered
   // outer tip and a clean V-notch inside. The far ends of the arms are cut
-  // VERTICALLY (perpendicular to the horizontal bisector) — not perpendicular
-  // to each arm's long axis. This matches the logo's chevron geometry: each
-  // outer corner has a (90° + α) interior angle, not a hard 90°.
+  // PERPENDICULAR TO EACH ARM'S LONG AXIS — that's the geometry an arrow has:
+  // both outer long edges point toward the tip, the back-cuts angle inward.
   function drawChevron(ctx, shape) {
     const L = shape.size * shape._scale;            // arm length (centerline)
     const t = L * CHEVRON_THICKNESS_RATIO;          // thickness
@@ -240,20 +239,22 @@
     const sinA = Math.sin(a);
 
     // Body centroid is at origin. Centerlines' apex is at (cosA*L/2, 0).
-    // Outer mitered tip + V-notch sit on the right; vertical back-cut on left.
-    const tipX     =  cosA * L / 2 + t / (2 * sinA);   // outer mitered tip
-    const notchX   =  cosA * L / 2 - t / (2 * sinA);   // V notch
-    const farX     = -cosA * L / 2;                     // vertical back cut
-    const farOuter =  sinA * L + t / (2 * cosA);       // |y| at outer back corner
-    const farInner =  sinA * L - t / (2 * cosA);       // |y| at inner back corner
+    // Outer mitered tip + V-notch sit on the right. Back cuts are perpendicular
+    // to each arm, so the outer corner is forward of the inner corner.
+    const tipX   =  cosA * L / 2 + t / (2 * sinA);
+    const notchX =  cosA * L / 2 - t / (2 * sinA);
+    const farXo  = -cosA * L / 2 + t * sinA / 2;    // outer back corner x
+    const farXi  = -cosA * L / 2 - t * sinA / 2;    // inner back corner x
+    const farYo  =  sinA * L + t * cosA / 2;        // |y| outer back corner
+    const farYi  =  sinA * L - t * cosA / 2;        // |y| inner back corner
 
     ctx.beginPath();
-    ctx.moveTo(tipX,    0);           // 1. outer mitered tip
-    ctx.lineTo(farX,   -farOuter);    // 2. top-outer back corner (vertical cut)
-    ctx.lineTo(farX,   -farInner);    // 3. top-inner back corner (vertical cut)
-    ctx.lineTo(notchX,  0);           // 4. V notch
-    ctx.lineTo(farX,    farInner);    // 5. bot-inner back corner
-    ctx.lineTo(farX,    farOuter);    // 6. bot-outer back corner
+    ctx.moveTo(tipX,   0);          // 1. outer mitered tip
+    ctx.lineTo(farXo, -farYo);      // 2. top-outer back corner
+    ctx.lineTo(farXi, -farYi);      // 3. top-inner back corner
+    ctx.lineTo(notchX, 0);          // 4. V notch
+    ctx.lineTo(farXi,  farYi);      // 5. bot-inner back corner
+    ctx.lineTo(farXo,  farYo);      // 6. bot-outer back corner
     ctx.closePath();
     ctx.fill();
   }
