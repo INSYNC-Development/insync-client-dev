@@ -47,31 +47,35 @@
   //   - Triangle is ~1/4 the size of the ring (small accent).
   //   - Overall scale reduced vs prior pass — shapes were a touch too big.
   //   Within each kind ALL instances share the same size — no random mix.
-  const SIZE_RING     = 95;
-  const SIZE_HALFRING = 95;
-  const SIZE_CHEVRON  = 140;
-  const SIZE_TRIANGLE = 32;
+  const SIZE_RING     = 110;
+  const SIZE_HALFRING = 110;
+  const SIZE_CHEVRON  = 160;
+  const SIZE_TRIANGLE = 37;
 
   const SHAPES = [
-    // Coral closed rings (primary anchors) ────────────────────────────────────
-    { kind: 'ring',     x: 220,  y: 350, size: SIZE_RING },
-    { kind: 'ring',     x: 720,  y: 540, size: SIZE_RING },
-    { kind: 'ring',     x: 1240, y: 580, size: SIZE_RING },
+    // Coral closed rings (primary anchors, 4 instances) ───────────────────────
+    { kind: 'ring',     x: 180,  y: 350, size: SIZE_RING },
+    { kind: 'ring',     x: 540,  y: 540, size: SIZE_RING },
+    { kind: 'ring',     x: 900,  y: 450, size: SIZE_RING },
+    { kind: 'ring',     x: 1260, y: 580, size: SIZE_RING },
 
-    // Yellow triangles (accents) ──────────────────────────────────────────────
-    { kind: 'triangle', x: 360,  y: 100, size: SIZE_TRIANGLE },
-    { kind: 'triangle', x: 950,  y: 80,  size: SIZE_TRIANGLE, rotation: 0.6 },
-    { kind: 'triangle', x: 1370, y: 150, size: SIZE_TRIANGLE, rotation: -0.4 },
+    // Yellow triangles (4 instances) ──────────────────────────────────────────
+    { kind: 'triangle', x: 250,  y: 120, size: SIZE_TRIANGLE },
+    { kind: 'triangle', x: 620,  y: 90,  size: SIZE_TRIANGLE, rotation: 0.6 },
+    { kind: 'triangle', x: 990,  y: 130, size: SIZE_TRIANGLE, rotation: -0.4 },
+    { kind: 'triangle', x: 1350, y: 100, size: SIZE_TRIANGLE, rotation: 1.1 },
 
-    // Blue chevrons (secondary visual) ────────────────────────────────────────
-    { kind: 'chevron',  x: 100,  y: 540, size: SIZE_CHEVRON },
-    { kind: 'chevron',  x: 870,  y: 580, size: SIZE_CHEVRON, rotation: 0.5 },
-    { kind: 'chevron',  x: 1100, y: 200, size: SIZE_CHEVRON, rotation: -1.2 },
+    // Blue chevrons (4 instances) ─────────────────────────────────────────────
+    { kind: 'chevron',  x: 110,  y: 540, size: SIZE_CHEVRON },
+    { kind: 'chevron',  x: 470,  y: 580, size: SIZE_CHEVRON, rotation: 0.5 },
+    { kind: 'chevron',  x: 830,  y: 470, size: SIZE_CHEVRON, rotation: -1.2 },
+    { kind: 'chevron',  x: 1180, y: 510, size: SIZE_CHEVRON, rotation: 2.1 },
 
-    // Pink half-rings (accents) ───────────────────────────────────────────────
-    { kind: 'halfRing', x: 1340, y: 380, size: SIZE_HALFRING, rotation: 0.4 },
-    { kind: 'halfRing', x: 540,  y: 560, size: SIZE_HALFRING, rotation: -0.9 },
-    { kind: 'halfRing', x: 1010, y: 595, size: SIZE_HALFRING, rotation: 2.4 },
+    // Pink half-rings (4 instances) ───────────────────────────────────────────
+    { kind: 'halfRing', x: 340,  y: 580, size: SIZE_HALFRING, rotation: 0.4 },
+    { kind: 'halfRing', x: 700,  y: 540, size: SIZE_HALFRING, rotation: -0.9 },
+    { kind: 'halfRing', x: 1060, y: 595, size: SIZE_HALFRING, rotation: 2.4 },
+    { kind: 'halfRing', x: 1390, y: 380, size: SIZE_HALFRING, rotation: -1.7 },
   ];
 
   // ── Matter loader ──────────────────────────────────────────────────────────
@@ -227,10 +231,10 @@
     ctx.fill();
   }
 
-  // Render the chevron as a single 6-point concave polygon with a mitered
-  // outer tip and a clean V-notch inside. The far ends of the arms are cut
-  // PERPENDICULAR TO EACH ARM'S LONG AXIS — that's the geometry an arrow has:
-  // both outer long edges point toward the tip, the back-cuts angle inward.
+  // Render the chevron as a 6-point concave polygon with a mitered outer tip
+  // and a V-notch. The back-ends of the arms are cut HORIZONTALLY (parallel to
+  // the chevron's bisector), making each arm a parallelogram. The outer long
+  // edges point cleanly toward the tip — both edges converge to the forward.
   function drawChevron(ctx, shape) {
     const L = shape.size * shape._scale;            // arm length (centerline)
     const t = L * CHEVRON_THICKNESS_RATIO;          // thickness
@@ -238,23 +242,22 @@
     const cosA = Math.cos(a);
     const sinA = Math.sin(a);
 
-    // Body centroid is at origin. Centerlines' apex is at (cosA*L/2, 0).
-    // Outer mitered tip + V-notch sit on the right. Back cuts are perpendicular
-    // to each arm, so the outer corner is forward of the inner corner.
+    // Apex (centerlines' meeting point) is at (cosA*L/2, 0) in body-local.
+    // Mitered outer tip extends forward by t/(2·sinA), V-notch behind apex.
+    // Horizontal back cuts at |y| = sinA*L (centerline far-end Y).
     const tipX   =  cosA * L / 2 + t / (2 * sinA);
     const notchX =  cosA * L / 2 - t / (2 * sinA);
-    const farXo  = -cosA * L / 2 + t * sinA / 2;    // outer back corner x
-    const farXi  = -cosA * L / 2 - t * sinA / 2;    // inner back corner x
-    const farYo  =  sinA * L + t * cosA / 2;        // |y| outer back corner
-    const farYi  =  sinA * L - t * cosA / 2;        // |y| inner back corner
+    const farXo  = -cosA * L / 2 + t / (2 * sinA);  // outer back X
+    const farXi  = -cosA * L / 2 - t / (2 * sinA);  // inner back X
+    const farY   =  sinA * L;                        // |y| horizontal back cut
 
     ctx.beginPath();
     ctx.moveTo(tipX,   0);          // 1. outer mitered tip
-    ctx.lineTo(farXo, -farYo);      // 2. top-outer back corner
-    ctx.lineTo(farXi, -farYi);      // 3. top-inner back corner
+    ctx.lineTo(farXo, -farY);       // 2. top-outer back corner
+    ctx.lineTo(farXi, -farY);       // 3. top-inner back corner (horizontal cut)
     ctx.lineTo(notchX, 0);          // 4. V notch
-    ctx.lineTo(farXi,  farYi);      // 5. bot-inner back corner
-    ctx.lineTo(farXo,  farYo);      // 6. bot-outer back corner
+    ctx.lineTo(farXi,  farY);       // 5. bot-inner back corner
+    ctx.lineTo(farXo,  farY);       // 6. bot-outer back corner (horizontal cut)
     ctx.closePath();
     ctx.fill();
   }
