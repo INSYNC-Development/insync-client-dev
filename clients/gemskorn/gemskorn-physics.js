@@ -39,13 +39,18 @@
   // Each entry: { kind, x, y, size, rotation? }
   // Color is auto-applied from BRAND_SHAPES — cannot be overridden per instance.
   // Multiple instances per kind are encouraged; just vary size + position.
-  // Sizes follow logo proportions: ring is the dominant anchor, half-ring
-  // a touch smaller, chevron medium-large, triangle small accent.
-  // Within each kind ALL instances share the same size — no random mix.
-  const SIZE_RING     = 160;
-  const SIZE_HALFRING = 130;
+  // Sizes follow logo proportions:
+  //   - Ring and half-ring are the SAME size (and have the same stroke ratio
+  //     of 0.70, so absolute stroke thickness matches too).
+  //   - Chevron is sized so its dominant (vertical) extent ≈ ring outer
+  //     diameter — i.e., the arrow visually matches the ring's footprint.
+  //   - Triangle is ~1/4 the size of the ring (small accent).
+  //   - Overall scale reduced vs prior pass — shapes were a touch too big.
+  //   Within each kind ALL instances share the same size — no random mix.
+  const SIZE_RING     = 95;
+  const SIZE_HALFRING = 95;
   const SIZE_CHEVRON  = 140;
-  const SIZE_TRIANGLE = 65;
+  const SIZE_TRIANGLE = 32;
 
   const SHAPES = [
     // Coral closed rings (primary anchors) ────────────────────────────────────
