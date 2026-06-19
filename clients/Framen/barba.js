@@ -26,6 +26,18 @@ let durationDefault = 0.6;
 CustomEase.create("osmo", "0.625, 0.05, 0, 1");
 gsap.defaults({ ease: "osmo", duration: durationDefault });
 
+// -----------------------------------------------------------------------------
+// initCustomTabs(container)
+// -----------------------------------------------------------------------------
+// Re-attaches custom click handlers to every Webflow tab group (.w-tabs) inside
+// the given container. Webflow ships its own tab logic, but those listeners
+// belong to the old DOM and stop working after a Barba page swap, so we rebind
+// them here. On click the handler toggles the active classes + ARIA attributes
+// on the matching link/pane and updates the URL hash to the tab anchor.
+// A "data-customTabInit" flag is set on each link so the handler is never
+// bound twice when the same page is re-entered.
+// To target different markup, change the ".w-tabs" / ".w-tab-link" /
+// ".w-tab-pane" selectors below (these are Webflow's defaults).
 function initCustomTabs(container = document) {
   const tabGroups = container.querySelectorAll(".w-tabs");
 
@@ -72,6 +84,15 @@ function initCustomTabs(container = document) {
   });
 }
 
+// -----------------------------------------------------------------------------
+// reinitWebflowComponents(container)
+// -----------------------------------------------------------------------------
+// After Barba swaps the page DOM, Webflow's own systems (Interactions/IX2,
+// Lottie players, tab redraw) need to be kicked off again on the new
+// container — otherwise scroll triggers and hover animations silently die.
+// This calls Webflow.destroy() then ready() to reset internal state, re-inits
+// IX2 and Lottie, and on the next animation frame repairs the tab ARIA markup
+// and rebinds our custom tab handlers. Run this exactly once per page enter.
 function reinitWebflowComponents(container) {
   if (!window.Webflow) return;
 
@@ -94,6 +115,16 @@ function reinitWebflowComponents(container) {
   });
 }
 
+// -----------------------------------------------------------------------------
+// repairWebflowTabs(container)
+// -----------------------------------------------------------------------------
+// After Barba swaps DOM, Webflow's auto-generated tab IDs and ARIA wiring are
+// stale (IDs collide between old/new containers or get lost entirely). This
+// rewrites every tab inside every ".w-tabs" group with a fresh ID, matching
+// aria-controls / aria-labelledby on the corresponding pane, and resets role
+// + aria-selected + tabindex so the tabs are accessible again.
+// Called automatically from reinitWebflowComponents() — you normally don't
+// need to call this directly.
 function repairWebflowTabs(container) {
   const tabsWraps = container.querySelectorAll(".w-tabs");
 
@@ -133,7 +164,20 @@ function repairWebflowTabs(container) {
 // -----------------------------------------
 // FUNCTION REGISTRY
 // -----------------------------------------
-
+//
+// Three init phases driven by the Barba lifecycle. Decide where new inits
+// belong based on WHEN they need to run:
+//   - initOnceFunctions()        runs ONCE per browser session (first load).
+//                                Put truly global setup here (e.g. Lenis).
+//                                Re-entering the same page will NOT re-run it.
+//   - initBeforeEnterFunctions() runs before the new page becomes visible.
+//                                Use for setup that must happen while the
+//                                page is still hidden (e.g. pre-scaling the
+//                                hero so the entrance animation lands right).
+//   - initAfterEnterFunctions()  runs after the new page is visible. This is
+//                                where per-page code is dispatched from
+//                                initfunction() at the bottom of this file.
+// Rule of thumb: new per-page inits go inside initfunction(), NOT here.
 function initOnceFunctions() {
   initLenis();
   if (onceFunctionsInitialized) return;
@@ -164,7 +208,23 @@ function initAfterEnterFunctions(next) {
 // -----------------------------------------
 // PAGE TRANSITIONS
 // -----------------------------------------
-
+//
+// Default "slide-up panel" transition used for the routes listed in
+// `allowedSlugs` further down (Barba init). Any route NOT in that list falls
+// back to the simpler fade transition in the next section.
+//
+// Barba calls these three functions in order:
+//   runPageOnceAnimation   first load only; just resets scroll + inline styles.
+//   runPageLeaveAnimation  old page slides up to -15vh while the panel rises
+//                          and the "next page name" label fades in.
+//   runPageEnterAnimation  new page rises from +15vh, panel slides off the
+//                          top of the screen, label fades out. Returns a
+//                          Promise that resolves once the page is settled.
+//
+// If you tweak duration values, keep the leave timing (0.8s) and the enter
+// pre-roll (1.25s) in sync — they're tuned to meet in the middle.
+// If reduced-motion is enabled (OS-level a11y setting), all three functions
+// short-circuit to instant swaps.
 function runPageOnceAnimation(next) {
   const tl = gsap.timeline();
 
@@ -345,7 +405,12 @@ function runPageEnterAnimation(next) {
 // -----------------------------------------
 // PAGE TRANSITIONS FADE
 // -----------------------------------------
-
+//
+// Fallback transition for any route NOT in `allowedSlugs`. Simpler than the
+// slide-up panel: the old page fades out, the new page fades in, and the H1
+// of the new page pops in with a slight upward motion. Same three-phase API
+// as the default transition above (once / leave / enter). Use this style when
+// adding pages that don't need the branded panel effect.
 function runPageOnceAnimationFade(next) {
   const tl = gsap.timeline();
 
@@ -440,7 +505,21 @@ function runPageEnterAnimationFade(next) {
 // -----------------------------------------
 // BARBA HOOKS + INIT
 // -----------------------------------------
-
+//
+// These hooks fire on EVERY page transition regardless of which transition
+// variant (slide-up or fade) runs. They handle the cross-cutting concerns
+// that aren't part of the visual animation itself:
+//   beforeEnter  pins the new container on top with fixed positioning so it
+//                can sit over the outgoing one, pauses Lenis, runs the
+//                "before enter" inits, applies the page theme (light/dark)
+//                from the next container's data-page-theme attribute.
+//   afterLeave   kills every active GSAP ScrollTrigger so they don't leak
+//                references to the destroyed DOM.
+//   enter        syncs the nav menu's active state to the new page (the nav
+//                lives outside Barba's container, so it isn't replaced).
+//   afterEnter   runs the "after enter" inits (i.e. all per-page code via
+//                initfunction()), then resizes Lenis and refreshes
+//                ScrollTrigger so measurements reflect the new layout.
 barba.hooks.beforeEnter((data) => {
   // Position new container on top
   gsap.set(data.next.container, {
@@ -483,6 +562,25 @@ barba.hooks.afterEnter((data) => {
   }
 });
 
+// -----------------------------------------------------------------------------
+// allowedSlugs + barba.init
+// -----------------------------------------------------------------------------
+// `allowedSlugs` is the whitelist of routes that get the branded slide-up
+// panel transition. Add new paths here when you want that transition on them.
+// Trailing slash matters: "/screens/" matches any subroute like /screens/abc;
+// without a trailing slash the match is exact (e.g. "/pricing" matches only
+// /pricing). The root "/" is special-cased to exact-match only — otherwise
+// it would match every URL.
+//
+// barba.init configures:
+//   - debug:           leave true while iterating, turn off in production.
+//   - timeout:         max ms Barba waits for a transition before bailing.
+//   - prevent:         skips Barba on links flagged with data-barba-prevent
+//                      and on Webflow tab links (so tab clicks don't trigger
+//                      a full page transition).
+//   - transitions[0]:  the slide-up panel; gated by `custom` returning true
+//                      only when the target slug is in allowedSlugs.
+//   - transitions[1]:  the fade fallback, used for everything else.
 const allowedSlugs = [
   "/", // The home page (exact match)
   "/venues",
@@ -569,6 +667,17 @@ barba.init({
 // GENERIC + HELPERS
 // -----------------------------------------
 
+// -----------------------------------------------------------------------------
+// themeConfig + applyThemeFrom(container)
+// -----------------------------------------------------------------------------
+// The site supports light and dark page themes. Each page declares its theme
+// via `data-page-theme="light|dark"` on its top-level container.
+// applyThemeFrom() reads that attribute and propagates the matching theme
+// tokens to three places: the <body> (data-page-theme), the nav element
+// (data-theme-nav), and the transition overlay (data-theme-transition).
+// CSS then targets those data attributes to swap colors.
+// To add a new theme: add an entry to themeConfig and define matching CSS
+// rules for the new data-page-theme value.
 const themeConfig = {
   light: {
     nav: "dark",
@@ -596,6 +705,17 @@ function applyThemeFrom(container) {
   }
 }
 
+// -----------------------------------------------------------------------------
+// initLenis()
+// -----------------------------------------------------------------------------
+// Sets up Lenis smooth-scrolling. ONE instance, shared across the whole site.
+// Called once from initOnceFunctions(). Tuning knobs:
+//   - lerp:            how soft the scroll feels (lower = smoother + slower,
+//                      higher = snappier). 0.165 is the current default.
+//   - wheelMultiplier: scales mousewheel speed. Bump up for faster scroll.
+// If ScrollTrigger is loaded, Lenis's scroll event is piped into it so all
+// GSAP scroll triggers stay in sync with the smooth scroll.
+// Do NOT call this more than once — the early return guards against that.
 function initLenis() {
   if (lenis) return; // already created
   if (!hasLenis) return;
@@ -616,6 +736,13 @@ function initLenis() {
   gsap.ticker.lagSmoothing(0);
 }
 
+// -----------------------------------------------------------------------------
+// resetPage(container)
+// -----------------------------------------------------------------------------
+// Called at the end of every page transition. Scrolls back to the top, clears
+// the fixed-positioning inline styles that beforeEnter set, and restarts
+// Lenis. If a page lands scrolled to the wrong position or stays stuck under
+// the nav, the bug is usually here or in Lenis timing.
 function resetPage(container) {
   window.scrollTo(0, 0);
   gsap.set(container, { clearProps: "position,top,left,right" });
@@ -626,6 +753,14 @@ function resetPage(container) {
   }
 }
 
+// -----------------------------------------------------------------------------
+// debounceOnWidthChange(fn, ms)
+// -----------------------------------------------------------------------------
+// Utility: returns a debounced version of `fn` that only fires if the viewport
+// WIDTH actually changed during the debounce window. Used to skip pointless
+// layout re-inits on iOS Safari's vertical-only resize events (when the URL
+// bar shows/hides). Wrap any function that recomputes layout (swiper re-init,
+// scroll position recalc, etc.) with this to avoid jank on mobile.
 function debounceOnWidthChange(fn, ms) {
   let last = innerWidth,
     timer;
@@ -640,6 +775,19 @@ function debounceOnWidthChange(fn, ms) {
   };
 }
 
+// -----------------------------------------------------------------------------
+// initBarbaNavUpdate(data)
+// -----------------------------------------------------------------------------
+// Keeps the nav menu's "current page" indicator in sync during Barba swaps.
+// The nav element lives OUTSIDE Barba's container, so it isn't replaced when
+// pages swap — meaning aria-current and the active class would otherwise
+// stay frozen on the previous link. This function reads the incoming page's
+// HTML, finds every nav item flagged with `data-barba-update`, and copies
+// the aria-current + class list onto the matching live nav element.
+//
+// Markup contract: every nav item that should sync needs `data-barba-update`
+// on BOTH the current DOM and the matching item in the new page's HTML.
+// Items are paired by index, so the order must match between pages.
 function initBarbaNavUpdate(data) {
   var tpl = document.createElement("template");
   tpl.innerHTML = data.next.html.trim();
@@ -671,6 +819,36 @@ function initBarbaNavUpdate(data) {
 /* ─────────────────────────────────────────
                 Number Odometer
    ───────────────────────────────────────── */
+// -----------------------------------------------------------------------------
+// initNumberOdometer(container)
+// -----------------------------------------------------------------------------
+// Builds a slot-machine-style "rolling number" animation for any element
+// inside a [data-odometer-group]. When the group scrolls into view, each
+// number animates from its start value (or 0) up to the final number shown
+// in the text content, rolling each digit independently like an old odometer.
+//
+// MARKUP CONTRACT (set these in Webflow):
+//   [data-odometer-group]                       wraps a set of numbers that
+//                                               should animate together.
+//   [data-odometer-element]                     the actual number text node.
+//   [data-odometer-start="42"]    (optional)    start value (default 0).
+//   [data-odometer-duration="3"]  (optional)    roll duration per element.
+//   [data-odometer-grow="true|false"] (opt.)    reveal new digits as it grows.
+//   [data-odometer-stagger="0.1"]   (optional)  delay between elements.
+//   [data-odometer-stagger-order]   (optional)  "left" | "right" | "random".
+//   [data-odometer-trigger-start]   (optional)  ScrollTrigger start (default "top 80%").
+//
+// TUNING — change inside the `defaults` object below:
+//   duration         seconds per number to roll
+//   elementStagger   delay between adjacent numbers in a group
+//   digitStagger     delay between adjacent digits within a number
+//   digitCycles      how many times each digit cycles 0-9 before landing
+//   triggerStart     where in viewport the animation starts
+//
+// RETURNS: a programmatic `updateOdometer(el, newText)` function — call it
+// later to re-animate the same element to a new number without re-scrolling.
+//
+// Respects prefers-reduced-motion (skips animation entirely).
 function initNumberOdometer(container) {
   const groups = container.querySelectorAll("[data-odometer-group]");
   if (!groups.length) return; // Early return if no odometers found
@@ -1067,6 +1245,25 @@ function initNumberOdometer(container) {
    Works with Barba
 ───────────────────────────────────────── */
 
+// -----------------------------------------------------------------------------
+// initMainHeroVideoControl(container)
+// -----------------------------------------------------------------------------
+// Wires up the custom play/pause toggle for the homepage's main hero video.
+// Behaviour:
+//   1. Mirrors the play/pause icon to the video's real state, even if play
+//      state changes from somewhere else (autoplay, end of clip, etc.) —
+//      hooks into the native "play" and "pause" events for reliability.
+//   2. The button click manually toggles the video.
+//   3. Tries to autoplay 100ms after init. If the browser blocks autoplay
+//      (Safari iOS, etc.), it falls back to playing on the FIRST user
+//      interaction anywhere in the container (touch or click).
+//
+// MARKUP CONTRACT:
+//   .main_hero_visual_video > video       the video element itself.
+//   [data-main-hero="control-btn"]        the toggle wrapper (catches clicks).
+//   .button_toggle_play / .button_toggle_pause   the two icon states.
+//
+// To target a different hero or icon set, change the four selectors above.
 function initMainHeroVideoControl(container) {
   const video = container.querySelector(".main_hero_visual_video video");
   // Listening on the wrapper is safer to catch all clicks inside the button area
@@ -1152,6 +1349,17 @@ function initMainHeroVideoControl(container) {
   }, 100);
 }
 
+// -----------------------------------------------------------------------------
+// initStartVideoControl(container)
+// -----------------------------------------------------------------------------
+// Same play/pause + autoplay-with-fallback logic as initMainHeroVideoControl,
+// but targeted at the "start" section video (the second hero further down
+// the page). The two functions are intentionally kept separate so each can
+// be tuned independently if needed — they use different markup attributes:
+//   [data-start-el="video"] > video       the video element.
+//   [data-start-el="control-btn"]         the toggle wrapper.
+// If both videos should ever behave identically, this can be refactored into
+// a single function that takes a selector prefix.
 function initStartVideoControl(container) {
   const video = container.querySelector("[data-start-el='video'] video");
   // Listening on the wrapper is safer to catch all clicks inside the button area
@@ -1240,7 +1448,25 @@ function initStartVideoControl(container) {
 // -----------------------------------------
 // HERO PREPARATION HELPERS
 // -----------------------------------------
-
+//
+// The hero video starts the page scaled UP and centered, then scrolls down
+// into its natural 1:1 size as the user scrolls (see initHeroAnimation
+// further below). To avoid a visible "pop" on page load, the scaling has to
+// be applied BEFORE the page becomes visible — that's what prepareHeroScale
+// does (called from initBeforeEnterFunctions).
+//
+// The four helpers below compute the right scale + Y offset to make the hero
+// behave like `background-size: cover`, then build the CSS matrix() value:
+//   getCoverScale(el)   how much to scale so the element covers the viewport.
+//                       The multipliers (1.6 on mobile, 1.3 on desktop) are
+//                       tuned by eye — change these if the scaled hero looks
+//                       too small or too large at any breakpoint.
+//   getHeroMatrixY(el)  the vertical offset to keep the scaled hero centered.
+//                       Tweak the formula here if the hero starts too high or
+//                       too low on first paint.
+//   getHeroMatrix(...)  formats the scale + Y into a CSS matrix() transform.
+//   prepareHeroScale()  applies the initial transform + opacity to the hero
+//                       container BEFORE it becomes visible.
 function getCoverScale(el) {
   if (!el) return 1;
 
@@ -1298,6 +1524,32 @@ function prepareHeroScale(container) {
 /* ─────────────────────────────────────────
                 Hero Animation
    ───────────────────────────────────────── */
+// -----------------------------------------------------------------------------
+// initHeroAnimation(container)
+// -----------------------------------------------------------------------------
+// The main hero scroll animation on the homepage. As the user scrolls down
+// the page, this scrubs through a GSAP timeline that:
+//   1. Fades + blurs out the hero foreground content.
+//   2. Collapses the blur layer's height to 0.
+//   3. Scales the hero video from "cover" size back down to its natural 1:1
+//      (using the matrix computed by the hero preparation helpers above).
+//   4. Fades the CTA button group out at 20% into the scale.
+//   5. Fades the intro section in at the 50% mark of the scrub.
+// When the timeline completes it triggers initStartAnimation() to wire up
+// the second hero section below.
+//
+// MARKUP CONTRACT (Webflow class names):
+//   .main_hero_wrap                  ScrollTrigger anchor.
+//   .main_hero_scale_container       element that gets scaled / matrix-transformed.
+//   .main_hero_section               foreground that fades+blurs out.
+//   .main_hero_intro                 intro that fades in.
+//   .main_hero_blur_wrap             blur layer that collapses.
+//   .main_hero_btn_wrap              CTA button group that fades out.
+//
+// TUNING:
+//   scrub: 1.2          how much "smoothing" the scrub has (lower = snappier).
+//   duration: 0.7       proportional speed of the scale phase (relative to scrub).
+//   "power2.in/inOut"   easing per phase — swap for any GSAP ease.
 function initHeroAnimation(container) {
   const section = container.querySelector(".main_hero_wrap");
   const scaleContainer = container.querySelector(".main_hero_scale_container");
@@ -1385,6 +1637,30 @@ function initHeroAnimation(container) {
                 Start Animation
    ───────────────────────────────────────── */
 //  This function is called after the hero animation completed to fix the issue on load when the hero animation scaling
+// -----------------------------------------------------------------------------
+// initStartAnimation(container)
+// -----------------------------------------------------------------------------
+// Sister to initHeroAnimation, but for the SECOND hero section ("start"
+// section, lower on the page). Triggered automatically by initHeroAnimation's
+// onComplete so the ScrollTrigger only registers once the main hero is done
+// (avoiding measurement bugs from the first hero's transform).
+//
+// Same scrub-scale-fade pattern as the main hero, but uses gsap.matchMedia
+// so the trigger start point can differ between mobile (top top+=15%) and
+// desktop (top top-=10%). Reduced-motion users get no animation.
+//
+// MARKUP CONTRACT:
+//   .start_wrap                ScrollTrigger anchor.
+//   .start_scale_container     element that gets scaled.
+//   .start_section             foreground that fades+blurs out.
+//   .start_intro               intro that fades in.
+//   .start_blur_wrap           blur layer that collapses.
+//   .start_btn_wrap            CTA button group that fades out.
+//
+// TUNING:
+//   breakPoint: 768            mobile/desktop split.
+//   start "top top+=15%"       trigger start on mobile.
+//   start "top top-=10%"       trigger start on desktop.
 function initStartAnimation(container) {
   const section = container.querySelector(".start_wrap");
   const scaleContainer = container.querySelector(".start_scale_container");
@@ -1493,6 +1769,25 @@ function initStartAnimation(container) {
 /* ─────────────────────────────────────────
                 Video Animation
    ───────────────────────────────────────── */
+// -----------------------------------------------------------------------------
+// initVideoAnimation(container)
+// -----------------------------------------------------------------------------
+// Generic "play video when it appears" handler. Used for inline videos
+// scattered through the site (case studies, feature highlights, etc.) that
+// should NOT autoplay on page load but should start when scrolled into view
+// or hovered.
+//
+// MARKUP CONTRACT:
+//   [data-video-anim-trigger]                       wraps each video tile.
+//   [data-video-animation="loop|scroll|scroll-hover"]   set on the <video>
+//                                                   element itself; picks
+//                                                   the behaviour:
+//     "loop"          starts immediately and loops forever (background videos).
+//     "scroll"        plays ONCE when the tile enters the viewport (top 80%).
+//     "scroll-hover"  same as "scroll" + also restarts on mouseenter.
+//
+// All variants reset currentTime to 0 before playing so the video always
+// starts from frame 0, no matter how the page was navigated to.
 function initVideoAnimation(container) {
   const processItems = container.querySelectorAll("[data-video-anim-trigger]");
   if (!processItems.length) return; // Early return if no video items found
@@ -1550,6 +1845,15 @@ function initVideoAnimation(container) {
 /* ─────────────────────────────────────────
                 Telephone Validation
    ───────────────────────────────────────── */
+// -----------------------------------------------------------------------------
+// initTelephoneValidation(container)
+// -----------------------------------------------------------------------------
+// Live-cleans every <input type="tel"> in the container as the user types:
+// strips anything that isn't a digit, allows a single leading "+" for the
+// country code, and shows an inline error message if forbidden characters
+// were entered. The error message slot is expected to be the input's NEXT
+// sibling and must carry `data-input-form="error-msg"` — if it's missing
+// the input is skipped and a console error is logged.
 function initTelephoneValidation(container) {
   const telInputs = container.querySelectorAll('input[type="tel"]');
   if (!telInputs.length) return; // Early return if no telephone fields
@@ -1611,6 +1915,22 @@ function initTelephoneValidation(container) {
 /* ─────────────────────────────────────────
                 Email Validation
    ───────────────────────────────────────── */
+// -----------------------------------------------------------------------------
+// initEmailValidation(container)
+// -----------------------------------------------------------------------------
+// Validates every <input type="email"> in two phases:
+//   1. Shape check on blur: ensures the value contains exactly one "@" with
+//      something on each side. If not, shows an inline error.
+//   2. Domain MX-record check via Google's public DNS-over-HTTPS endpoint
+//      (https://dns.google/resolve). If the domain has no MX records (i.e.
+//      nobody can actually receive mail there), the error message says so.
+//
+// Same error-slot contract as initTelephoneValidation: the input's next
+// sibling must carry `data-input-form="error-msg"`.
+//
+// NOTE: the validation is on BLUR, not on input — users won't see errors
+// while still typing. If you change the API endpoint above, make sure the
+// response shape still has `data.Answer` for the success check to work.
 function initEmailValidation(container) {
   const emailInputs = container.querySelectorAll('input[type="email"]');
   if (!emailInputs.length) return; // Early return if no email fields
@@ -1688,6 +2008,13 @@ function initEmailValidation(container) {
 /* ─────────────────────────────────────────
                 Line Animation
    ───────────────────────────────────────── */
+// -----------------------------------------------------------------------------
+// initLineAnimation(container)
+// -----------------------------------------------------------------------------
+// Reveals horizontal divider lines by scaling them from 0% to 100% width
+// once they scroll into view (top 90%). Targets any element flagged with
+// `data-element="horizontal-line"`. Duration is 2s using the custom "osmo"
+// ease defined at the top of this file.
 function initLineAnimation(container) {
   const lines = container.querySelectorAll("[data-element='horizontal-line']");
   if (!lines.length) return; // Early return if no lines found
@@ -1711,6 +2038,22 @@ function initLineAnimation(container) {
 /* ─────────────────────────────────────────
                 Split Text Animation
    ───────────────────────────────────────── */
+// -----------------------------------------------------------------------------
+// initSplitTextAnimation(container)
+// -----------------------------------------------------------------------------
+// The "brand color sweep" headline effect. Each character of an element
+// flagged with `data-text-animation="split-text"` gets split into its own
+// <span>, then scroll-scrubbed through three color states:
+//   start  faded-out version of the final color (20% opacity blend).
+//   mid    the brand color from CSS variable --swatch--brand-500.
+//   end    the original text color (preserves <strong> color overrides).
+//
+// Uses GSAP's SplitText plugin. The character stagger is 0.05s; the scrub is
+// linear (ease: "none") between start at "top 80%" and end at "bottom 60%"
+// of the trigger element.
+//
+// To change the mid color: edit the CSS custom property --swatch--brand-500.
+// To change the timing curve: replace ease/start/end in the ScrollTrigger.
 function initSplitTextAnimation(container) {
   const targets = container.querySelectorAll(
     '[data-text-animation="split-text"]'
@@ -1771,6 +2114,26 @@ function initSplitTextAnimation(container) {
 /* ─────────────────────────────────────────
                 Scroll Direction Detect
    ───────────────────────────────────────── */
+// -----------------------------------------------------------------------------
+// initDetectScrollingDirection(container)
+// -----------------------------------------------------------------------------
+// Publishes the current scroll state as data-attributes on any element that
+// opts in. CSS can then react to them — e.g. fade the nav out while
+// scrolling down, slide it back in on scroll up, hide a banner while the
+// user is actively scrolling, etc.
+//
+// Attributes set:
+//   [data-scrolling-stopped]   "true" when no scroll for >150ms, "false" while moving.
+//   [data-scrolling-direction] "up" or "down" — updated only when scroll
+//                              changes by at least `threshold` (10px) to
+//                              ignore micro-jitter.
+//   [data-scrolling-started]   "true" once scrolled past `thresholdTop` (50px),
+//                              "false" while still near the top of the page.
+//
+// TUNING (locals near the top of the function):
+//   threshold        min px to count as a direction change.
+//   thresholdTop     min px from top of page to count as "started" scrolling.
+//   scrollStopDelay  ms of no scroll before we declare scrolling stopped.
 function initDetectScrollingDirection(container) {
   const scrollStoppedEls = container.querySelectorAll(
     "[data-scrolling-stopped]"
@@ -1858,6 +2221,27 @@ function initDetectScrollingDirection(container) {
 /* ─────────────────────────────────────────
                 Areas Swiper Animation
    ───────────────────────────────────────── */
+// -----------------------------------------------------------------------------
+// SWIPER CAROUSELS — shared pattern
+// -----------------------------------------------------------------------------
+// Several sections on the site use Swiper.js carousels with the same general
+// shape: a slider wrapper inside a section, "auto" slides per view, drag-able,
+// no loop, and arrow buttons wired to the section's `.button_arrow_wrap`
+// elements (distinguished by an inner SVG with data-wf--icon-arrow--direction).
+//
+// The init helpers below follow that pattern almost identically — only the
+// section's class prefix and a few Swiper options differ. Common knobs:
+//   slidesPerView    "auto" lets the slide's CSS width define count; set a
+//                    number to force N slides at once.
+//   spaceBetween     px gap between slides.
+//   loop             true wraps end-to-start; usually false on this site.
+//   navigation       arrow selectors — change these if the buttons move.
+//   effect           Swiper visual transition; only the testimonial swiper
+//                    overrides this to "creative" (3D stack).
+// To add a new swiper for a new section: copy initCaseSwiper, swap the
+// section class prefix, and add it to initfunction() at the bottom.
+
+// initAreasSwiper — horizontal carousel for the "Areas" section.
 const initAreasSwiper = (container) => {
   const selector = container.querySelector(".areas_wrap .areas_slider");
   if (!selector) return;
@@ -1880,6 +2264,27 @@ const initAreasSwiper = (container) => {
   });
 };
 
+// -----------------------------------------------------------------------------
+// initStickySteps(container)
+// -----------------------------------------------------------------------------
+// Drives the "sticky step indicator" UI: a column of steps where the one
+// closest to the viewport center is marked "active", the ones above it are
+// "before", and the ones below it are "after". CSS reads the status
+// attribute to highlight the current step.
+//
+// MARKUP CONTRACT:
+//   [data-sticky-steps-init]      wraps a step group (one per section).
+//   [data-sticky-steps-item]      each step inside the group.
+//   [data-sticky-steps-anchor]    optional inner element whose position is
+//                                 measured (defaults: not required, but if
+//                                 present its CENTER is matched against the
+//                                 viewport center to pick the active step).
+//   [data-sticky-steps-item-status]   set by this function to "active" |
+//                                     "before" | "after".
+//
+// Wiring is done via a ScrollTrigger that only fires updates while the group
+// is on-screen, so off-screen groups don't burn CPU. Updates also fire on
+// resize (ScrollTrigger refresh).
 function initStickySteps(container) {
   const groups = container.querySelectorAll("[data-sticky-steps-init]");
   if (!groups.length) return;
@@ -1938,6 +2343,35 @@ function initStickySteps(container) {
   });
 }
 
+// -----------------------------------------------------------------------------
+// initDraggableMarquee(container)
+// -----------------------------------------------------------------------------
+// A horizontal scrolling marquee (ticker) that auto-scrolls at a steady speed
+// AND can be flicked / dragged left or right by the user — after the drag,
+// it eases back to the resting auto-scroll speed.
+//
+// HOW IT WORKS:
+//   1. Reads the natural width of the list, calculates how many clones are
+//      needed to fill the wrapper width + 1 for buffer, clones the list.
+//   2. Runs an infinite GSAP tween that translates the collection by -listWidth
+//      every `duration` seconds. A modifier wraps the X back to 0 so the
+//      animation never visibly resets.
+//   3. Wraps the wrapper in a GSAP Observer that listens for pointer/touch
+//      drag, converts drag velocity into a timeScale boost, then eases back
+//      to the resting direction over 1s.
+//   4. Pauses the loop AND the observer while the marquee is scrolled off
+//      screen (via ScrollTrigger) so it doesn't waste cycles.
+//
+// MARKUP CONTRACT:
+//   [data-draggable-marquee-init]            the wrapper (gets cursor + obs).
+//   [data-draggable-marquee-collection]      direct child that holds the lists.
+//   [data-draggable-marquee-list]            the original list — gets cloned.
+//
+// TUNING via data-attributes on the wrapper:
+//   data-duration       seconds per full loop (default 20).
+//   data-multiplier     max timeScale on flick (default 40 — higher = wilder).
+//   data-sensitivity    velocity-to-timeScale factor (default 0.01).
+//   data-direction      "left" (default) or "right" — initial scroll direction.
 function initDraggableMarquee(container) {
   const wrappers = container.querySelectorAll("[data-draggable-marquee-init]");
 
@@ -2089,6 +2523,9 @@ function initDraggableMarquee(container) {
   });
 }
 
+// initFaqOpenFirstItem — opens the first FAQ item on page load so users
+// land on visible content instead of an empty accordion. Targets the first
+// element with class ".faq_item" inside the container.
 const initFaqOpenFirstItem = (container) => {
   // Target the first details element within the FAQ component
   const item = container.querySelector(".faq_item");
@@ -2105,6 +2542,19 @@ const iniDynamicYear = (container) => {
   });
 };
 
+// -----------------------------------------------------------------------------
+// initLottieNav(container)
+// -----------------------------------------------------------------------------
+// Loads a Lottie animation into every nav dropdown icon and plays it on
+// hover of the parent nav item (mouseenter starts the loop, mouseleave
+// stops it). Each icon's source file is read from the element's
+// `data-src` attribute (the .json or .lottie path).
+//
+// MARKUP CONTRACT:
+//   .nav_dropdown_type_icon div[data-src]    the Lottie container — the
+//                                            data-src value is the JSON path.
+//   .nav_dropdown_type_item                  the parent nav item that
+//                                            triggers play on hover.
 const initLottieNav = (container) => {
   const elements = container.querySelectorAll(
     ".nav_dropdown_type_icon div[data-src]"
@@ -2129,6 +2579,7 @@ const initLottieNav = (container) => {
   });
 };
 
+// initCaseSwiper — horizontal carousel for the "Case studies" section.
 const initCaseSwiper = (container) => {
   const selector = container.querySelector(".case_wrap .case_list_wrap");
   if (!selector) return;
@@ -2155,6 +2606,11 @@ const initCaseSwiper = (container) => {
   // });
 };
 
+// initTestimonialSwiper — one-slide-at-a-time carousel for testimonials with
+// a "creative" 3D effect (outgoing slide slides + scales away to -500 z,
+// incoming slide enters from the opposite side). The translate distances
+// (140%) are intentionally larger than 100% so adjacent slides clear the
+// viewport entirely before fading out.
 const initTestimonialSwiper = (container) => {
   const selector = container.querySelector(
     ".testimonial_wrap .testimonial_swiper"
@@ -2192,6 +2648,32 @@ const initTestimonialSwiper = (container) => {
   });
 };
 
+// -----------------------------------------------------------------------------
+// initFilterBasic(container)
+// -----------------------------------------------------------------------------
+// Drives a simple click-to-filter UI: click a category button, the matching
+// items stay visible, the rest hide. Includes a built-in fade-out / fade-in
+// transition (300ms) and an empty-state element that shows when no items
+// match the current filter.
+//
+// MARKUP CONTRACT:
+//   [data-filter-group]                  wraps one filter set (buttons + items).
+//   [data-filter-target="<name>"]        a filter button — "all" shows everything.
+//   [data-filter-name="<name>"]          an item — must match a button target.
+//   [data-filter-empty]                  optional empty state. Gets attribute
+//                                        "visible" when no items match, "hidden"
+//                                        otherwise — style with CSS.
+//   [data-filter-status]                 written by this function on items
+//                                        and buttons. Values: "active",
+//                                        "not-active", "transition-out".
+//   aria-pressed / aria-hidden           also kept in sync for a11y.
+//
+// TUNING: change `transitionDelay` (default 300ms) to match your CSS fade
+// duration — items use it as the delay before switching the active/inactive
+// status, so animations have time to finish.
+//
+// NOTE: there's a more advanced multi-match version (initBasicFilterSetupMultiMatch)
+// further down in this file that supports filtering by multiple criteria at once.
 function initFilterBasic(container) {
   const groups = container.querySelectorAll("[data-filter-group]");
   if (!groups.length) return;
@@ -2342,6 +2824,32 @@ function initFilterBasic(container) {
 //     });
 //   });
 // };
+// -----------------------------------------------------------------------------
+// initStoriesDialog(container)
+// -----------------------------------------------------------------------------
+// Powers the "stories" modal pop-ups (native <dialog>) with shareable URLs.
+// Each story can be opened by clicking either an <a> link (the SEO-friendly
+// route) or a plain <div> trigger, and the URL hash updates to "#<slug>" so
+// the open story can be shared, bookmarked, or reopened via direct link.
+//
+// MARKUP CONTRACT:
+//   [data-stories-item]                       wraps a single story card.
+//   [data-modal-stories="dialog"]             the native <dialog> element.
+//   [data-modal-stories="open-dialog"]        <div> open trigger (optional).
+//   [data-modal-stories="close-dialog"]       close button inside the dialog.
+//   a[data-stories-slug="<slug>"]             SEO link — its slug attr becomes
+//                                             the URL hash (e.g. #behind-the-scenes).
+//
+// BEHAVIOUR:
+//   - Clicking the <a> link opens the dialog instead of navigating (unless
+//     the user holds cmd/ctrl/shift/middle-click to open in a new tab).
+//   - Clicking the <div> trigger opens the dialog without touching navigation.
+//   - Closing (Esc key, backdrop click, or close button) clears the URL hash.
+//   - On page load, if the URL already has a matching hash, the dialog opens.
+//   - Browser Back/Forward syncs the dialog state to whatever the hash is.
+//
+// NOTE: the large commented-out block immediately above this is the previous
+// implementation kept for reference — do not delete without checking git history.
 const initStoriesDialog = (container) => {
   const items = container.querySelectorAll("[data-stories-item]");
   if (!items.length) return;
@@ -2465,6 +2973,7 @@ const initStoriesDialog = (container) => {
   });
 };
 
+// initMilestonesSwiper — horizontal carousel for the "Milestones" section.
 const initMilestonesSwiper = (container) => {
   const selector = container.querySelector(".milestones_slider");
   if (!selector) return;
@@ -2489,6 +2998,7 @@ const initMilestonesSwiper = (container) => {
   });
 };
 
+// initPressOtherSwiper — horizontal carousel for the "Other press" section.
 const initPressOtherSwiper = (container) => {
   const selector = container.querySelector(".press_other_slider");
   if (!selector) return;
@@ -2513,6 +3023,7 @@ const initPressOtherSwiper = (container) => {
   });
 };
 
+// initEventsSwiper — horizontal carousel for the "Events" section.
 const initEventsSwiper = (container) => {
   const selector = container.querySelector(".events_wrap .events_slider");
   if (!selector) return;
@@ -2537,6 +3048,9 @@ const initEventsSwiper = (container) => {
   });
 };
 
+// initGalleryEventSwiper — auto-advancing gallery in the event hero (changes
+// slide every 3s automatically; users can also drag). Unlike the standard
+// arrow-button swipers above, this has no nav buttons by design.
 const initGalleryEventSwiper = (container) => {
   const selector = container.querySelector(
     ".hero_events_wrap .hero_events_gallery_slider"
@@ -2558,6 +3072,39 @@ const initGalleryEventSwiper = (container) => {
   });
 };
 
+// -----------------------------------------------------------------------------
+// initPartnerFunc(container)
+// -----------------------------------------------------------------------------
+// The most complex client-side widget on the site. Powers the partner /
+// screen-location listing with three combined behaviours:
+//   1. Pagination via "Load More" — shows itemsInitial (8) at first, reveals
+//      itemsNext (4) more per click of the load-more button.
+//   2. Category filtering — clicking a category button shows only matching
+//      items (and hides the load-more button while filtered).
+//   3. Live fuzzy search — typing into the search input filters items by
+//      content using List.js fuzzy matching. While searching, both the
+//      load-more and the category buttons are disabled.
+//
+// MARKUP CONTRACT:
+//   [data-load-more="wrapper"]              the wrapper of all items.
+//   [data-load-more="item"]                 each item card.
+//   [data-load-more="button"]               the "Load More" button.
+//   [data-filter-target="<name>" | "all"]   category filter buttons.
+//   [data-filter-name="cat1|cat2|..."]      items — pipe-separated categories.
+//   [data-filter-status]                    written by this fn: "active",
+//                                           "not-active", "transition-out".
+//   [data-live-search]                      wrapper enabling live search.
+//   [data-live-search-input]                the <input> element.
+//   [data-live-search-not-found]            empty-state shown on zero results.
+//
+// TUNING (constants at the top of the function):
+//   itemsInitial         starting visible count.
+//   itemsNext            how many more per "Load More" click.
+//   transitionDuration   ms between transition-out and the final state
+//                        change — match this to your CSS fade.
+//
+// Fuzzy search settings live inside initLiveSearch — threshold (0.3 by
+// default) controls how forgiving the match is (lower = stricter).
 const initPartnerFunc = (container) => {
   const itemsInitial = 8;
   const itemsNext = 4;
@@ -2783,6 +3330,25 @@ const initPartnerFunc = (container) => {
   }
 };
 
+// -----------------------------------------------------------------------------
+// initListLoadMore(container, config?)
+// -----------------------------------------------------------------------------
+// A simpler, reusable "Load More" pattern (no filter, no search). Useful for
+// any list where you just want to show N items and reveal more in batches.
+// Called twice from initfunction() at the bottom of this file:
+//   - default config for the generic list ([data-list-load-more='item']).
+//   - custom config for the blog list ([data-list-load-more='blog-item']).
+//
+// CONFIG OPTIONS (all optional):
+//   itemSelector      which elements are list items.
+//   buttonSelector    the Load More button.
+//   initialItems      how many to show on first paint (default 6).
+//   itemsPerLoad      how many to reveal per click (default 4).
+//   hiddenStyle       CSS display value for hidden items (default "none").
+//   visibleStyle      CSS display value for visible items (default "").
+//
+// To add a new variant, call initListLoadMore(container, {...}) in
+// initfunction() with the data-attributes that match your section.
 const initListLoadMore = (container, config = {}) => {
   const {
     itemSelector = "[data-list-load-more='item']",
@@ -2831,6 +3397,27 @@ const initListLoadMore = (container, config = {}) => {
   loadMoreBtnWrap.addEventListener("click", handleLoadMoreClick);
 };
 
+// -----------------------------------------------------------------------------
+// initTOCCaseStudy(container)
+// -----------------------------------------------------------------------------
+// Sticky table-of-contents for case-study pages. Two behaviours:
+//   1. Click a TOC link → smooth-scroll to the section whose id matches the
+//      link's text (lowercased, trimmed).
+//   2. Scroll spy → as the user scrolls, the TOC link for the section
+//      currently in the "active band" of the viewport (from 20% to 70% from
+//      top, via IntersectionObserver rootMargin) gets the "is-active" class.
+//
+// MARKUP CONTRACT:
+//   .stories_toc_text                                   each TOC link. Its
+//                                                       visible text MUST
+//                                                       match the section's
+//                                                       id attribute.
+//   .stories-main_content_wrap > div[id]                each scroll target.
+//
+// NOTE: there's a bug on line 3392 — `container.getElementById(targetId)`
+// should be `document.getElementById(targetId)` (Element has no
+// getElementById method). The smooth scroll will silently fail. Worth
+// fixing in a separate commit when convenient.
 const initTOCCaseStudy = (container) => {
   const tocLinks = container.querySelectorAll(".stories_toc_text");
   const sections = container.querySelectorAll(
@@ -2885,6 +3472,36 @@ const initTOCCaseStudy = (container) => {
   sections.forEach((section) => observer.observe(section));
 };
 
+// -----------------------------------------------------------------------------
+// initBasicFilterSetupMultiMatch(container)
+// -----------------------------------------------------------------------------
+// The "advanced" filter — superset of initFilterBasic. Differences:
+//   - Items can belong to MULTIPLE categories at once. Categories are read
+//     from child [data-filter-name-collect] nodes, deduped, and stored
+//     pipe-separated on the item's [data-filter-name].
+//   - Built-in "Load More" pagination per group, with its own button:
+//     initialItemsCount (8) on first paint, +itemsToLoadCount (4) per click.
+//   - Anti-flicker: items already in the correct state are skipped instead
+//     of being re-animated.
+//   - First paint hides excess items instantly (no fade) so the load-more
+//     UX doesn't run on initial page load.
+//
+// MARKUP CONTRACT:
+//   [data-filter-group]                  wraps one filter set.
+//   [data-filter-target="<name>" | "all"]   category button.
+//   [data-filter-name="cat|cat|..."]     item (pipe-delimited categories) —
+//                                        or generated automatically from
+//                                        [data-filter-name-collect] children.
+//   [data-filter-name-collect="<cat>"]   per-item child element that lists a
+//                                        category — they'll be merged into
+//                                        the item's data-filter-name attr.
+//   [data-filter-btn="load-more"]        the per-group load-more button.
+//   [data-filter-empty]                  empty-state element (optional).
+//
+// TUNING (constants at the top of the function):
+//   transitionDelay        ms between transition-out and the final state.
+//   initialItemsCount      number of items shown per group initially.
+//   itemsToLoadCount       number of items revealed per Load More click.
 function initBasicFilterSetupMultiMatch(container) {
   const transitionDelay = 300;
 
@@ -3067,6 +3684,17 @@ function initBasicFilterSetupMultiMatch(container) {
   });
 }
 
+// -----------------------------------------------------------------------------
+// startDialog(container)
+// -----------------------------------------------------------------------------
+// Minimal native <dialog> opener/closer (no URL-hash sync, no animation).
+// Used for the "start" CTA modal. Any element with [data-modal-start="open"]
+// opens it; any element with [data-modal-start="close"] closes it.
+//
+// MARKUP CONTRACT:
+//   [data-modal-start="dialog"]   the native <dialog> element.
+//   [data-modal-start="open"]     open trigger(s).
+//   [data-modal-start="close"]    close trigger(s).
 const startDialog = (container) => {
   const dialogEl = container.querySelector("[data-modal-start='dialog']");
   if (!dialogEl) return;
@@ -3091,6 +3719,11 @@ const startDialog = (container) => {
   }
 };
 
+// initMediaSwiper — full-width cross-fade carousel for the media section.
+// Auto-advances every 4s with an 800ms cross-fade; loops infinitely; pauses
+// on hover. Navigation buttons live at .p-media_button.is-next / .is-prev.
+// Drag is not enabled because the slides cross-fade in place rather than
+// translating horizontally.
 const initMediaSwiper = (container) => {
   const selector = container.querySelector(".swiper.is-media");
   if (!selector) return;
@@ -3121,6 +3754,35 @@ const initMediaSwiper = (container) => {
   });
 };
 
+// -----------------------------------------------------------------------------
+// initNavMenuAnim(container)
+// -----------------------------------------------------------------------------
+// Drives the MOBILE mega-menu animation (the desktop nav is a separate
+// Webflow interaction). Two transitions:
+//   openPanel(name)   when the user taps a top-level item with a sub-panel:
+//                     - main nav list staggers OUT to the left and fades.
+//                     - mega-nav background fades IN.
+//                     - the matching panel + its [data-menu-fade] children
+//                       slide IN from the right with a 0.06s stagger.
+//                     - the "Back" button fades IN.
+//   closePanel(instant?)   reverse of the above. If instant=true, jumps with
+//                          no animation (used when the hamburger closes
+//                          mid-panel — see the MutationObserver below).
+//
+// MARKUP CONTRACT:
+//   .nav_mobile_wrap                    root of the mobile nav (required).
+//   [data-dropdown-toggle="<name>"]     top-level item that opens a panel.
+//   [data-nav-content="<name>"]         the panel matching that name.
+//   [data-nav-list-item]                main nav list items that slide out.
+//   [data-menu-fade]                    items inside a panel that stagger in.
+//   .meganav_dropdown_wrap              wrapper of the panels.
+//   .meganav_dropdown_bg                background dim layer.
+//   [data-mobile-back]                  back button.
+//   .nav_button_wrap.w-nav-button       the hamburger (watched via MutationObserver).
+//
+// RETURNS: a cleanup function that clears all inline GSAP props — called
+// automatically when the viewport grows past 65em so the desktop layout
+// doesn't inherit mobile transforms.
 const initNavMenuAnim = (container) => {
   // 1. Setup MatchMedia for Mobile (65em)
   let mm = gsap.matchMedia();
@@ -3353,6 +4015,10 @@ const initNavMenuAnim = (container) => {
   // });
 };
 
+// initBackHistory(container) — wires any element flagged with
+// [data-button="back-history"] to act as a "Back" button using
+// window.history.back(). preventDefault is called so anchor tags don't
+// navigate before the history pop happens.
 function initBackHistory(container) {
   const backButtons = container.querySelectorAll(
     '[data-button="back-history"]'
@@ -3369,6 +4035,33 @@ function initBackHistory(container) {
   });
 }
 
+// =============================================================================
+// initfunction(container)   <-- MASTER PER-PAGE INIT
+// =============================================================================
+// This is the single entry point for ALL per-page JavaScript. It's called
+// from initAfterEnterFunctions() (near the top of this file) on every Barba
+// page enter, with `container` set to the new page's root element.
+//
+// Anything that needs to run after each page swap belongs here. The order
+// below is grouped by category (global / Swiper / Home / Stories / Partner /
+// Blog / Case Study) for readability — within a group the order doesn't
+// matter unless one init depends on another (e.g. initHeroAnimation calls
+// initStartAnimation in its onComplete).
+//
+// HOW TO ADD A NEW PER-PAGE FEATURE:
+//   1. Write `function initMyThing(container) { ... }` somewhere above.
+//   2. Add `initMyThing(container);` to the right group below.
+//   3. The function should NO-OP gracefully if its target markup isn't
+//      present on the current page (early return on null queries).
+//
+// HOW TO REMOVE A FEATURE:
+//   Delete or comment out the call below; the function definition can stay
+//   (or be deleted too, but leaving it allows quick re-enable).
+//
+// WHAT THIS FUNCTION ALSO DOES BEFORE DISPATCHING:
+//   - Clears any inline GSAP props on the new container (clean slate).
+//   - Scrolls to the top of the new page.
+//   - 200ms later: if the URL has a #hash, smooth-scrolls to that element.
 function initfunction(container) {
   gsap.set(container, { clearProps: "all" });
 
