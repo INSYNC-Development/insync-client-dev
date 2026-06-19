@@ -7,15 +7,15 @@ function raf(time) {
 
 requestAnimationFrame(raf);
 
-let mm = gsap.matchMedia();
+// let mm = gsap.matchMedia();
 
-mm.add("(max-width: 1024px)", () => {
-  ScrollTrigger.normalizeScroll(true);
+// mm.add("(max-width: 1024px)", () => {
+//   ScrollTrigger.normalizeScroll(true);
 
-  return () => {
-    ScrollTrigger.normalizeScroll(false);
-  };
-});
+//   return () => {
+//     ScrollTrigger.normalizeScroll(false);
+//   };
+// });
 
 function generatePillars() {
   const containers = document.querySelectorAll("[data-pillar]");
@@ -102,15 +102,15 @@ function blobAnimation() {
           0,
           this.x,
           this.y,
-          this.radius
+          this.radius,
         );
         gradient.addColorStop(
           0,
-          `rgba(${this.color.r}, ${this.color.g}, ${this.color.b}, ${this.color.a})`
+          `rgba(${this.color.r}, ${this.color.g}, ${this.color.b}, ${this.color.a})`,
         );
         gradient.addColorStop(
           1,
-          `rgba(${this.color.r}, ${this.color.g}, ${this.color.b}, 0)`
+          `rgba(${this.color.r}, ${this.color.g}, ${this.color.b}, 0)`,
         );
 
         ctx.fillStyle = gradient;
@@ -588,7 +588,7 @@ function galleryAnimation() {
             duration: CONFIG.animDuration,
             ease: CONFIG.ease,
           },
-          0
+          0,
         );
       } else if (index === 1) {
         gsap.set(item, { zIndex: pos.center.zIndex });
@@ -600,7 +600,7 @@ function galleryAnimation() {
             duration: CONFIG.animDuration,
             ease: CONFIG.ease,
           },
-          0
+          0,
         );
       } else if (index === 2) {
         gsap.set(item, { zIndex: pos.bottomright.zIndex });
@@ -612,7 +612,7 @@ function galleryAnimation() {
             duration: CONFIG.animDuration,
             ease: CONFIG.ease,
           },
-          0
+          0,
         );
       } else if (index === itemsArr.length - 1 && itemsArr.length > 3) {
         gsap.set(item, { zIndex: 0 });
@@ -627,7 +627,7 @@ function galleryAnimation() {
             duration: CONFIG.animDuration * 0.5,
             ease: "power1.out",
           },
-          0
+          0,
         );
       }
     });
@@ -645,8 +645,8 @@ function galleryAnimation() {
           index === 0
             ? pos.topleft
             : index === 1
-            ? pos.center
-            : pos.bottomright;
+              ? pos.center
+              : pos.bottomright;
         gsap.set(item, {
           width: target.width,
           height: target.height,
@@ -789,7 +789,7 @@ function svgAnimation() {
           duration: 1,
         },
 
-        "-=0.4"
+        "-=0.4",
       );
     }
   });
@@ -812,7 +812,7 @@ function initFilterBasic() {
     const updateStatus = (element, shouldBeActive) => {
       element.setAttribute(
         "data-filter-status",
-        shouldBeActive ? "active" : "not-active"
+        shouldBeActive ? "active" : "not-active",
       );
       element.setAttribute("aria-hidden", shouldBeActive ? "false" : "true");
     };
@@ -838,7 +838,7 @@ function initFilterBasic() {
         const isActive = button.getAttribute("data-filter-target") === target;
         button.setAttribute(
           "data-filter-status",
-          isActive ? "active" : "not-active"
+          isActive ? "active" : "not-active",
         );
       });
     };
