@@ -4,8 +4,17 @@
  * Draggable physics shapes for the Gemskorn hero section.
  * Built on Matter.js (loaded dynamically from jsDelivr).
  *
- * Brand-locked: each shape kind has a fixed color baked in (BRAND_SHAPES below).
- * The SHAPES array specifies only kind + position + size — colors cannot be mixed.
+ * All 5 logo elements — geometry + colors extracted 1:1 from the official
+ * Gemskorn logo vector file (AI/PDF):
+ *   ring      — coral closed donut (the `O`)
+ *   halfRing  — pink hollow ∪ half-ring
+ *   chevron   — blue `<` arrow (the `K` element), sharp tip, ~108° opening
+ *   triangle  — yellow right isosceles triangle
+ *   circle    — green solid dot
+ *
+ * Each element appears exactly 3× — large / medium / small — with all
+ * per-kind proportions locked to the logo (e.g. circle radius = ring inner
+ * radius, chevron height = ring outer diameter).
  *
  * Usage:
  *   <gemskorn-physics></gemskorn-physics>
@@ -20,62 +29,97 @@
 
   const MATTER_CDN = 'https://cdn.jsdelivr.net/npm/matter-js@0.19.0/build/matter.min.js';
 
-  // ── Brand colors (locked to shape kinds) ───────────────────────────────────
-  // If Gemskorn provides exact brand hex values, swap them here.
+  // ── Brand colors (extracted from the official logo file, locked to kinds) ──
   const BG_COLOR = '#22213A';
 
   const BRAND_SHAPES = {
-    ring:     { color: '#EE4D5A' }, // Coral — closed donut (the `O` element)
-    triangle: { color: '#F2B632' }, // Yellow — accent triangle
-    chevron:  { color: '#3047C7' }, // Blue — `>` arrow, 120° opening (logo angle)
-    halfRing: { color: '#C8197A' }, // Pink — hollow ∪ half-ring, 180° opening
+    ring:     { color: '#EA5F5F' }, // Coral — closed donut (the `O` element)
+    halfRing: { color: '#DA3289' }, // Pink — hollow ∪ half-ring
+    chevron:  { color: '#3C509E' }, // Blue — `<` arrow (the `K` element)
+    triangle: { color: '#FABA25' }, // Yellow — right isosceles triangle
+    circle:   { color: '#298952' }, // Green — solid dot
   };
 
   // Reference width — shapes are defined at this width and scale proportionally.
   const REF_WIDTH = 1440;
   const REF_HEIGHT = 720;
 
+  // ── Logo-exact geometry ratios ─────────────────────────────────────────────
+  // Measured from the logo vector file:
+  //   ring/halfRing: inner radius = 0.4651 × outer radius
+  //   chevron:       half-height = ring outer radius, width = 1.4663 × half-height
+  //   triangle:      leg = 0.6511 × ring outer radius
+  //   circle:        radius = 0.4651 × ring outer radius (= ring inner radius)
+  const RING_INNER_RATIO = 0.4651;
+  const RING_CENTER_RATIO = (1 + RING_INNER_RATIO) / 2;   // centerline radius
+  const RING_THICK_RATIO = 1 - RING_INNER_RATIO;          // stroke thickness
+
+  // Chevron `<` (pointing left) — 6-vertex polygon in centroid-local units,
+  // normalized by half-height, y-down. Derived from logo vertices.
+  const CHEV_VERTS = [
+    { x: -0.7332, y:  0 },   // sharp outer tip (left)
+    { x: -0.0104, y: -1 },   // top inner back corner
+    { x:  0.7331, y: -1 },   // top outer back corner (horizontal cut)
+    { x:  0.0104, y:  0 },   // V-notch (right)
+    { x:  0.7331, y:  1 },   // bottom outer back corner (horizontal cut)
+    { x: -0.0104, y:  1 },   // bottom inner back corner
+  ];
+  // Physics arms (two parallelograms ≈ rotated rectangles), same units:
+  const CHEV_ARM_LEN   = 1.2339;  // centerline length
+  const CHEV_ARM_THICK = 0.6026;  // perpendicular thickness
+  const CHEV_ARM_ANGLE = 0.9449;  // rad (≈54.1° from horizontal)
+
+  // Triangle: right isosceles (right angle top-right, hypotenuse ↙), verts in
+  // centroid-local units normalized by leg length, y-down.
+  const TRI_VERTS = [
+    { x:  1 / 3, y:  2 / 3 },   // bottom-right
+    { x:  1 / 3, y: -1 / 3 },   // top-right (right angle)
+    { x: -2 / 3, y: -1 / 3 },   // top-left
+  ];
+
   // ── Shape instances ────────────────────────────────────────────────────────
   // Each entry: { kind, x, y, size, rotation? }
   // Color is auto-applied from BRAND_SHAPES — cannot be overridden per instance.
-  // Multiple instances per kind are encouraged; just vary size + position.
-  // Sizes follow logo proportions:
-  //   - Ring and half-ring are the SAME size (and have the same stroke ratio
-  //     of 0.70, so absolute stroke thickness matches too).
-  //   - Chevron is sized so its dominant (vertical) extent ≈ ring outer
-  //     diameter — i.e., the arrow visually matches the ring's footprint.
-  //   - Triangle is ~1/4 the size of the ring (small accent).
-  //   - Overall scale reduced vs prior pass — shapes were a touch too big.
-  //   Within each kind ALL instances share the same size — no random mix.
-  const SIZE_RING     = 110;
-  const SIZE_HALFRING = 110;
-  const SIZE_CHEVRON  = 160;
-  const SIZE_TRIANGLE = 37;
+  // Every kind appears exactly 3× in three size tiers (large/medium/small).
+  // Size semantics per kind:
+  //   ring/halfRing/chevron: size = ring outer radius / chevron half-height
+  //   triangle: size = leg length     circle: size = radius
+  // Tier base: ring outer radius L=140 / M=95 / S=60; other kinds follow
+  // logo proportions relative to that.
+  const TIER = { L: 140, M: 95, S: 60 };
+  const sz = {
+    ring:     (t) => TIER[t],
+    halfRing: (t) => TIER[t],
+    chevron:  (t) => TIER[t],
+    triangle: (t) => Math.round(TIER[t] * 0.6511),
+    circle:   (t) => Math.round(TIER[t] * 0.4651),
+  };
 
   const SHAPES = [
-    // Coral closed rings (primary anchors, 4 instances) ───────────────────────
-    { kind: 'ring',     x: 180,  y: 350, size: SIZE_RING },
-    { kind: 'ring',     x: 540,  y: 540, size: SIZE_RING },
-    { kind: 'ring',     x: 900,  y: 450, size: SIZE_RING },
-    { kind: 'ring',     x: 1260, y: 580, size: SIZE_RING },
+    // Coral rings — L / M / S
+    { kind: 'ring',     x: 200,  y: 300, size: sz.ring('L') },
+    { kind: 'ring',     x: 640,  y: 200, size: sz.ring('M') },
+    { kind: 'ring',     x: 1080, y: 260, size: sz.ring('S') },
 
-    // Yellow triangles (4 instances) ──────────────────────────────────────────
-    { kind: 'triangle', x: 250,  y: 120, size: SIZE_TRIANGLE },
-    { kind: 'triangle', x: 620,  y: 90,  size: SIZE_TRIANGLE, rotation: 0.6 },
-    { kind: 'triangle', x: 990,  y: 130, size: SIZE_TRIANGLE, rotation: -0.4 },
-    { kind: 'triangle', x: 1350, y: 100, size: SIZE_TRIANGLE, rotation: 1.1 },
+    // Pink half-rings — L / M / S
+    { kind: 'halfRing', x: 420,  y: 520, size: sz.halfRing('L'), rotation: 0.4 },
+    { kind: 'halfRing', x: 860,  y: 480, size: sz.halfRing('M'), rotation: -0.9 },
+    { kind: 'halfRing', x: 1300, y: 420, size: sz.halfRing('S'), rotation: 2.4 },
 
-    // Blue chevrons (4 instances) ─────────────────────────────────────────────
-    { kind: 'chevron',  x: 110,  y: 540, size: SIZE_CHEVRON },
-    { kind: 'chevron',  x: 470,  y: 580, size: SIZE_CHEVRON, rotation: 0.5 },
-    { kind: 'chevron',  x: 830,  y: 470, size: SIZE_CHEVRON, rotation: -1.2 },
-    { kind: 'chevron',  x: 1180, y: 510, size: SIZE_CHEVRON, rotation: 2.1 },
+    // Blue chevrons — L / M / S
+    { kind: 'chevron',  x: 1150, y: 540, size: sz.chevron('L') },
+    { kind: 'chevron',  x: 330,  y: 140, size: sz.chevron('M'), rotation: 0.8 },
+    { kind: 'chevron',  x: 760,  y: 120, size: sz.chevron('S'), rotation: -1.1 },
 
-    // Pink half-rings (4 instances) ───────────────────────────────────────────
-    { kind: 'halfRing', x: 340,  y: 580, size: SIZE_HALFRING, rotation: 0.4 },
-    { kind: 'halfRing', x: 700,  y: 540, size: SIZE_HALFRING, rotation: -0.9 },
-    { kind: 'halfRing', x: 1060, y: 595, size: SIZE_HALFRING, rotation: 2.4 },
-    { kind: 'halfRing', x: 1390, y: 380, size: SIZE_HALFRING, rotation: -1.7 },
+    // Yellow triangles — L / M / S
+    { kind: 'triangle', x: 980,  y: 90,  size: sz.triangle('L'), rotation: 0.3 },
+    { kind: 'triangle', x: 520,  y: 100, size: sz.triangle('M'), rotation: -0.5 },
+    { kind: 'triangle', x: 80,   y: 120, size: sz.triangle('S'), rotation: 1.2 },
+
+    // Green circles — L / M / S
+    { kind: 'circle',   x: 1360, y: 150, size: sz.circle('L') },
+    { kind: 'circle',   x: 150,  y: 80,  size: sz.circle('M') },
+    { kind: 'circle',   x: 600,  y: 340, size: sz.circle('S') },
   ];
 
   // ── Matter loader ──────────────────────────────────────────────────────────
@@ -95,14 +139,13 @@
   }
 
   // ── Body builders ──────────────────────────────────────────────────────────
+  // size semantics: see SHAPES comment above.
 
   // Ring: closed thick donut. Compound body of segment rectangles forming
   // a complete 360° circle. Centroid sits at the geometric center (no offset).
-  // Logo-tuned stroke thickness: hole ≈ 48% of outer diameter (was 63%).
-  const RING_THICKNESS_RATIO = 0.70;
   function buildRingBody(Matter, x, y, size, options) {
-    const radius = size;
-    const thickness = size * RING_THICKNESS_RATIO;
+    const radius = size * RING_CENTER_RATIO;
+    const thickness = size * RING_THICK_RATIO;
     const segments = 32;
     const angleStep = (2 * Math.PI) / segments;
     const segLen = 2 * radius * Math.sin(angleStep / 2) * 1.05;
@@ -124,14 +167,12 @@
 
   // Half-ring: hollow ∪ shape, 180° opening. Compound body of segments along
   // the bottom semicircle (angles 0 to π in Y-down). Centroid is offset
-  // toward the bulk of the arc — see HALF_RING_CY in renderer.
-  // Match the ring's stroke proportion for visual consistency.
-  const HALF_RING_THICKNESS_RATIO = 0.70;
+  // toward the bulk of the arc — see HALF_RING_CENTROID_OFFSET in renderer.
   // Mean of sin(a) over [0, π] = 2/π ≈ 0.6366 — centroid offset on Y axis.
   const HALF_RING_CENTROID_OFFSET = 2 / Math.PI;
   function buildHalfRingBody(Matter, x, y, size, options) {
-    const radius = size;
-    const thickness = size * HALF_RING_THICKNESS_RATIO;
+    const radius = size * RING_CENTER_RATIO;
+    const thickness = size * RING_THICK_RATIO;
     const segments = 18;
     const angleStep = Math.PI / segments;
     const segLen = 2 * radius * Math.sin(angleStep / 2) * 1.05;
@@ -151,41 +192,37 @@
     return Matter.Body.create({ parts, ...options });
   }
 
-  // Triangle: equilateral-ish pointing down (apex at bottom).
-  // Vertices already centered on centroid.
+  // Triangle: right isosceles (logo-exact). Vertices already centroid-centered.
   function buildTriangleBody(Matter, x, y, size, options) {
-    const verts = [
-      { x: -size,        y: -size * 0.467 },
-      { x:  size,        y: -size * 0.467 },
-      { x:  0,           y:  size * 0.933 },
-    ];
+    const verts = TRI_VERTS.map((v) => ({ x: v.x * size, y: v.y * size }));
     return Matter.Bodies.fromVertices(x, y, [verts], options);
   }
 
-  // Chevron: `>` arrow pointing right at a 120° opening (logo angle).
-  // Compound body of two rectangle arms meeting at a tip.
-  // Body centroid lands at (x, y); tip is offset right.
-  const CHEVRON_HALF_ANGLE = Math.PI / 3; // 60° → arms meet at 120°
-  const CHEVRON_THICKNESS_RATIO = 0.30;
+  // Chevron `<`: two parallelogram arms approximated by rotated rectangles.
+  // Body centroid lands at (x, y); sharp tip points LEFT (logo orientation).
   function buildChevronBody(Matter, x, y, size, options) {
-    const halfAngle = CHEVRON_HALF_ANGLE;
-    const armLen = size;
-    const thickness = size * CHEVRON_THICKNESS_RATIO;
-    const sinA = Math.sin(halfAngle);
+    const armLen = size * CHEV_ARM_LEN;
+    const thickness = size * CHEV_ARM_THICK;
     const top = Matter.Bodies.rectangle(
-      x, y - sinA * armLen / 2, armLen, thickness, { angle: halfAngle }
+      x, y - size / 2, armLen, thickness, { angle: -CHEV_ARM_ANGLE }
     );
     const bot = Matter.Bodies.rectangle(
-      x, y + sinA * armLen / 2, armLen, thickness, { angle: -halfAngle }
+      x, y + size / 2, armLen, thickness, { angle: CHEV_ARM_ANGLE }
     );
     return Matter.Body.create({ parts: [top, bot], ...options });
   }
 
+  // Circle: solid dot — a plain circle body.
+  function buildCircleBody(Matter, x, y, size, options) {
+    return Matter.Bodies.circle(x, y, size, options);
+  }
+
   const BUILDERS = {
     ring:     buildRingBody,
-    triangle: buildTriangleBody,
-    chevron:  buildChevronBody,
     halfRing: buildHalfRingBody,
+    chevron:  buildChevronBody,
+    triangle: buildTriangleBody,
+    circle:   buildCircleBody,
   };
 
   // ── Renderers ──────────────────────────────────────────────────────────────
@@ -194,10 +231,8 @@
 
   // Closed donut: outer circle minus inner circle. Centroid = arc center.
   function drawRing(ctx, shape) {
-    const r = shape.size * shape._scale;
-    const t = r * RING_THICKNESS_RATIO;
-    const outer = r + t / 2;
-    const inner = r - t / 2;
+    const outer = shape.size * shape._scale;
+    const inner = outer * RING_INNER_RATIO;
     ctx.beginPath();
     ctx.arc(0, 0, outer, 0, 2 * Math.PI, false);
     ctx.arc(0, 0, inner, 2 * Math.PI, 0, true);
@@ -206,14 +241,12 @@
   }
 
   // Hollow half-ring (∪). Arc geometric center is offset from body centroid
-  // by HALF_RING_CENTROID_OFFSET in body-local Y so the visual aligns with
-  // the physics body. The two flat caps are formed implicitly via closePath.
+  // by HALF_RING_CENTROID_OFFSET × centerline radius in body-local Y so the
+  // visual aligns with the physics body. Flat caps via closePath.
   function drawHalfRing(ctx, shape) {
-    const r = shape.size * shape._scale;
-    const t = r * HALF_RING_THICKNESS_RATIO;
-    const outer = r + t / 2;
-    const inner = r - t / 2;
-    const cy = -HALF_RING_CENTROID_OFFSET * r;
+    const outer = shape.size * shape._scale;
+    const inner = outer * RING_INNER_RATIO;
+    const cy = -HALF_RING_CENTROID_OFFSET * outer * RING_CENTER_RATIO;
     ctx.beginPath();
     ctx.arc(0, cy, outer, 0, Math.PI, false);
     ctx.arc(0, cy, inner, Math.PI, 0, true);
@@ -224,49 +257,39 @@
   function drawTriangle(ctx, shape) {
     const s = shape.size * shape._scale;
     ctx.beginPath();
-    ctx.moveTo(-s,  -s * 0.467);
-    ctx.lineTo( s,  -s * 0.467);
-    ctx.lineTo( 0,   s * 0.933);
+    ctx.moveTo(TRI_VERTS[0].x * s, TRI_VERTS[0].y * s);
+    ctx.lineTo(TRI_VERTS[1].x * s, TRI_VERTS[1].y * s);
+    ctx.lineTo(TRI_VERTS[2].x * s, TRI_VERTS[2].y * s);
     ctx.closePath();
     ctx.fill();
   }
 
-  // Render the chevron as a 6-point concave polygon with a mitered outer tip
-  // and a V-notch. The back-ends of the arms are cut HORIZONTALLY (parallel to
-  // the chevron's bisector), making each arm a parallelogram. The outer long
-  // edges point cleanly toward the tip — both edges converge to the forward.
+  // Chevron `<`: logo-exact 6-vertex polygon — sharp mitered tip on the left,
+  // V-notch on the right, horizontal back cuts (each arm a parallelogram).
   function drawChevron(ctx, shape) {
-    const L = shape.size * shape._scale;            // arm length (centerline)
-    const t = L * CHEVRON_THICKNESS_RATIO;          // thickness
-    const a = CHEVRON_HALF_ANGLE;
-    const cosA = Math.cos(a);
-    const sinA = Math.sin(a);
-
-    // Apex (centerlines' meeting point) is at (cosA*L/2, 0) in body-local.
-    // Mitered outer tip extends forward by t/(2·sinA), V-notch behind apex.
-    // Horizontal back cuts at |y| = sinA*L (centerline far-end Y).
-    const tipX   =  cosA * L / 2 + t / (2 * sinA);
-    const notchX =  cosA * L / 2 - t / (2 * sinA);
-    const farXo  = -cosA * L / 2 + t / (2 * sinA);  // outer back X
-    const farXi  = -cosA * L / 2 - t / (2 * sinA);  // inner back X
-    const farY   =  sinA * L;                        // |y| horizontal back cut
-
+    const s = shape.size * shape._scale;
     ctx.beginPath();
-    ctx.moveTo(tipX,   0);          // 1. outer mitered tip
-    ctx.lineTo(farXo, -farY);       // 2. top-outer back corner
-    ctx.lineTo(farXi, -farY);       // 3. top-inner back corner (horizontal cut)
-    ctx.lineTo(notchX, 0);          // 4. V notch
-    ctx.lineTo(farXi,  farY);       // 5. bot-inner back corner
-    ctx.lineTo(farXo,  farY);       // 6. bot-outer back corner (horizontal cut)
+    ctx.moveTo(CHEV_VERTS[0].x * s, CHEV_VERTS[0].y * s);
+    for (let i = 1; i < CHEV_VERTS.length; i++) {
+      ctx.lineTo(CHEV_VERTS[i].x * s, CHEV_VERTS[i].y * s);
+    }
     ctx.closePath();
+    ctx.fill();
+  }
+
+  function drawCircle(ctx, shape) {
+    const r = shape.size * shape._scale;
+    ctx.beginPath();
+    ctx.arc(0, 0, r, 0, 2 * Math.PI);
     ctx.fill();
   }
 
   const RENDERERS = {
     ring:     drawRing,
-    triangle: drawTriangle,
-    chevron:  drawChevron,
     halfRing: drawHalfRing,
+    chevron:  drawChevron,
+    triangle: drawTriangle,
+    circle:   drawCircle,
   };
 
   // ── Custom Element ─────────────────────────────────────────────────────────
