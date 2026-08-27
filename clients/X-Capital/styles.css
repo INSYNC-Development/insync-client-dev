@@ -1,0 +1,152 @@
+/* @media screen and (min-width: 1024px) {
+  .nav_component[data-scrolling-started="true"] .nav_desktop_contain {
+    padding: 0 var(--nav--spacing-inner-horizontal);
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(20px);
+  }
+
+  .nav_component[data-scrolling-started="true"]
+    .nav_dropdown_mega_wrap:has(.w--open) {
+    width: 100%;
+  }
+}
+
+@media screen and (max-width: 1024px) {
+  .nav_component[data-scrolling-started="true"] .nav_mobile_contain {
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(20px);
+    border-radius: 1rem;
+  }
+
+  .nav_component:has(.w-nav-button.w--open) .nav_mobile_layout {
+    background: transparent;
+    backdrop-filter: blur(0px);
+  }
+} */
+
+/* Navbar CSS */
+/* .nav_component .nav_desktop_contain,
+.nav_component .nav_mobile_contain {
+  transition: all 0.4s cubic-bezier(0.625, 0.05, 0, 1);
+}
+
+@media screen and (min-width: 1520px) {
+  .nav_component[data-scrolling-started="true"] .nav_desktop_contain {
+    padding: 0 var(--nav--spacing-inner-horizontal);
+    background: transparent;
+    position: relative;
+    z-index: 1;
+  }
+
+  .nav_component[data-scrolling-started="true"] .nav_desktop_contain::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-radius: 1rem;
+    pointer-events: none;
+    z-index: -1;
+  }
+
+  .nav_component[data-scrolling-started="true"]
+    .nav_desktop_contain.is-bonus::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.05);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-radius: 1rem;
+    pointer-events: none;
+    z-index: -1;
+  }
+
+  .nav_component[data-scrolling-started="true"]
+    .nav_dropdown_mega_wrap:has(.w--open) {
+    width: 100%;
+  }
+}
+
+@media screen and (max-width: 1520px) {
+  .nav_component[data-scrolling-started="true"] .nav_mobile_contain {
+    background: transparent;
+
+    position: relative;
+    z-index: 1;
+  }
+
+  .nav_component[data-scrolling-started="true"] .nav_mobile_contain::before {
+    content: "";
+    position: absolute;
+    border-radius: 1rem;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-radius: 1rem;
+
+    pointer-events: none;
+    z-index: -1;
+  }
+
+  .nav_component[data-scrolling-started="true"]
+    .nav_mobile_contain.is-bonus::before {
+    content: "";
+    position: absolute;
+    border-radius: 1rem;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.05);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-radius: 1rem;
+
+    pointer-events: none;
+    z-index: -1;
+  }
+
+  .nav_component:has(.w-nav-button.w--open) .nav_mobile_contain::before {
+    opacity: 0;
+    visibility: hidden;
+  }
+
+  .nav_component:has(.w-nav-button.w--open) .nav_mobile_layout {
+    background: transparent;
+    backdrop-filter: blur(0px);
+    -webkit-backdrop-filter: blur(0px);
+  }
+}
+
+.nav_desktop_contain > *,
+.nav_mobile_contain > * {
+  position: relative;
+  z-index: 2;
+}
+
+.c-app_line_progress {
+  opacity: 0.4;
+  transform: scaleY(0); 
+  transform-origin: top; 
+} */
+
+/* .ti-widget[data-layout-id="106"][data-set-id="light-background"][data-pid="1d35c66709ff1199d556b39cf6b"]
+  .ti-header
+  strong,
+.ti-widget[data-layout-id="106"][data-set-id="light-background"][data-pid="1d35c66709ff1199d556b39cf6b"]
+  .ti-separator:before {
+  color: white !important;
+}
+
+.ti-widget[data-layout-id="106"][data-set-id="light-background"][data-pid="1d35c66709ff1199d556b39cf6b"]
+  > .ti-widget-container
+  > .ti-header,
+.ti-widget[data-layout-id="106"][data-set-id="light-background"][data-pid="1d35c66709ff1199d556b39cf6b"]
+  > .ti-widget-container
+  > .ti-footer {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+  backdrop-filter: blur(10px);
+} */
+/* .s-webinar_list {
+  padding-right: var(--_spacing---space--3);
+} */
