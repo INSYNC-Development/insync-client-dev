@@ -1,0 +1,19 @@
+{
+  "name": "machine-reveal",
+  "source": "_source/new-ccs-vid.mov",
+  "frames": 152,
+  "sourceFps": 30,
+  "durationSeconds": 5.067,
+  "format": "webp",
+  "quality": 82,
+  "filePattern": "machine-reveal-####.webp",
+  "firstFrame": 1,
+  "padding": 4,
+  "tiers": [
+    { "dir": "1440", "width": 1440, "height": 812, "bytes": 5019716, "avgFrameBytes": 33024 },
+    { "dir": "720",  "width": 720,  "height": 406, "bytes": 2160440, "avgFrameBytes": 14213 }
+  ],
+  "poster": "../../posters/machine-reveal-poster.jpg",
+  "videoFallback": "../../videos/machine-reveal.mp4",
+  "notes": "Frame 0001 is intentionally black (reveal-from-dark). Poster is frame 0152."
+}
