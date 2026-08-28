@@ -596,276 +596,61 @@ function initfunction(container) {
   navbarInteraction(container);
   projetInteraction(container);
   processAnimation(container);
-  initTeamSection(container);
+  teamSlider(container);
+  teamContentSlider(container);
   socialSlider(container);
   formValidation(container);
   footerYear(container);
   // openProject(container);
   initModalBasic(container);
   initCSSMarquee(container);
-  scrollToProject(container);
 }
 
-// function initCSSMarquee(container) {
-//   var prefersReduced =
-//     window.matchMedia &&
-//     window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-//   document.querySelectorAll("[data-css-marquee]").forEach(function (marquee) {
-//     var list = marquee.querySelector("[data-css-marquee-list]");
-//     if (!list || marquee.dataset.marqueeReady) return;
-//     marquee.dataset.marqueeReady = "true";
-
-//     var speed = parseFloat(marquee.dataset.speed) || 75; // pixels per second
-//     var isReverse = marquee.dataset.direction === "reverse";
-
-//     var track = document.createElement("div");
-//     track.className = "marquee-css__track";
-//     marquee.appendChild(track);
-//     track.appendChild(list);
-
-//     var clones = [];
-//     var baseWidth = 0; // width of one copy
-//     var pitch = 0; // distance between the start of one copy and the next
-//     var offset = 0; // monotonic distance travelled, in px
-//     var lastTime = null;
-//     var rafId = null;
-//     var isVisible = false;
-
-//     function rotateList(scope, n) {
-//       var items = Array.prototype.slice.call(scope.children);
-//       if (!items.length || !n) return;
-//       n = ((n % items.length) + items.length) % items.length;
-//       if (!n) return;
-//       var frag = document.createDocumentFragment();
-//       items.slice(n).concat(items.slice(0, n)).forEach(function (item) {
-//         frag.appendChild(item);
-//       });
-//       scope.appendChild(frag);
-//     }
-
-//     // These logos are sized `height: 100%` with no width. Safari gives an image
-//     // that has not loaded 0px of layout width (Chrome reserves space from the
-//     // SVG's own width/height, which is why this only ever showed up in Safari),
-//     // and a lazy image parked off-screen never loads at all — so one copy stayed
-//     // narrow and the row tiled unevenly. Load them all up front, at low priority
-//     // so this below-the-fold section doesn't compete with the hero.
-//     function eagerLoad(scope) {
-//       scope.querySelectorAll("img").forEach(function (img) {
-//         img.loading = "eager";
-//         img.setAttribute("fetchpriority", "low");
-//       });
-//     }
-
-//     // Keep enough copies that the track always spans the container plus one copy.
-//     function ensureCopies() {
-//       if (baseWidth <= 0) return;
-//       var needed = Math.max(2, Math.ceil(marquee.offsetWidth / baseWidth) + 1);
-//       while (clones.length < needed - 1) {
-//         var clone = list.cloneNode(true);
-//         clone.setAttribute("aria-hidden", "true");
-//         clone.setAttribute("data-css-marquee-clone", "");
-//         eagerLoad(clone);
-//         track.appendChild(clone);
-//         clones.push(clone);
-//       }
-//     }
-
-//     function measure() {
-//       var w = list.getBoundingClientRect().width;
-//       if (w <= 0) return;
-//       if (Math.abs(w - baseWidth) > 0.5) {
-//         baseWidth = w;
-//         ensureCopies();
-//       }
-//       // Wrap by the real distance between two copies rather than by one copy's
-//       // reported width — that stays exact even if a copy measures oddly.
-//       var p = clones.length
-//         ? clones[0].getBoundingClientRect().left -
-//           list.getBoundingClientRect().left
-//         : w;
-//       if (p > 0 && Math.abs(p - pitch) > 0.5) pitch = p;
-//     }
-
-//     function render() {
-//       if (pitch <= 0) {
-//         track.style.transform = "translate3d(0, 0, 0)";
-//         return;
-//       }
-//       var m = ((offset % pitch) + pitch) % pitch; // 0..pitch
-//       var x = isReverse ? m - pitch : -m;
-//       track.style.transform = "translate3d(" + x + "px, 0, 0)";
-//     }
-
-//     function animate(timestamp) {
-//       if (lastTime === null) lastTime = timestamp;
-//       // Clamp so a backgrounded tab or a long frame can't teleport the track.
-//       var dt = Math.min((timestamp - lastTime) / 1000, 0.05);
-//       lastTime = timestamp;
-//       offset += speed * dt;
-//       render();
-//       rafId = isVisible ? requestAnimationFrame(animate) : null;
-//     }
-
-//     function start() {
-//       if (rafId !== null || prefersReduced) return;
-//       lastTime = null;
-//       rafId = requestAnimationFrame(animate);
-//     }
-
-//     function stop() {
-//       if (rafId === null) return;
-//       cancelAnimationFrame(rafId);
-//       rafId = null;
-//     }
-
-//     rotateList(list, parseInt(marquee.dataset.rotate, 10) || 0);
-//     eagerLoad(list);
-//     measure();
-//     render();
-
-//     // Re-measure whenever the row actually changes size (logos finishing loading,
-//     // font swap, container resize) instead of trusting one DOMContentLoaded read.
-//     if (window.ResizeObserver) {
-//       new ResizeObserver(function () {
-//         measure();
-//         render();
-//       }).observe(list);
-//     }
-//     list.querySelectorAll("img").forEach(function (img) {
-//       if (!img.complete) img.addEventListener("load", measure, { once: true });
-//     });
-//     window.addEventListener("load", measure);
-//     window.addEventListener("resize", measure);
-
-//     new IntersectionObserver(
-//       function (entries) {
-//         entries.forEach(function (entry) {
-//           isVisible = entry.isIntersecting;
-//           if (isVisible) start();
-//           else stop();
-//         });
-//       },
-//       { threshold: 0 }
-//     ).observe(marquee);
-//   });
-// }
-
 function initCSSMarquee(container) {
-  var scope = container || document;
+  var prefersReduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  var prefersReduced =
-    window.matchMedia &&
-    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-  // ---------------------------------------------------------------------------
-  // Satu jam untuk semua baris.
-  //
-  // Sebelumnya tiap baris punya offset, lastTime, dan requestAnimationFrame
-  // sendiri, dan IntersectionObserver menghidupkan/mematikannya sendiri-sendiri.
-  // Akibatnya fase antar baris ditentukan oleh kapan user kebetulan scroll —
-  // row 1 masuk viewport lebih dulu dari row 3, jadi keduanya mengakumulasi
-  // offset yang berbeda dan pelan-pelan merayap sampai sejajar. Itu sebabnya
-  // logo kembar sesekali muncul di tiga baris sekaligus.
-  //
-  // Dengan satu offset bersama, jarak antar baris HANYA ditentukan oleh rotasi
-  // urutan, dan itu konstan selamanya. Jam boleh berhenti saat section keluar
-  // layar — asal semua baris berhenti dan lanjut bersamaan, fase tetap terkunci.
-  // ---------------------------------------------------------------------------
-  var SPEED = 75; // px per detik, seragam untuk semua baris
-  var rows = [];
-  var globalOffset = 0;
-  var lastTime = null;
-  var rafId = null;
-  var visibleCount = 0;
-
-  function tick(timestamp) {
-    if (lastTime === null) lastTime = timestamp;
-    // Clamp: tab yang di-background atau frame panjang tidak boleh
-    // meneleportasi track.
-    var dt = Math.min((timestamp - lastTime) / 1000, 0.05);
-    lastTime = timestamp;
-    globalOffset += SPEED * dt;
-
-    for (var i = 0; i < rows.length; i++) {
-      if (rows[i].visible) rows[i].render(globalOffset);
-    }
-
-    rafId = visibleCount > 0 ? requestAnimationFrame(tick) : null;
-  }
-
-  function startClock() {
-    if (rafId !== null || prefersReduced) return;
-    lastTime = null;
-    rafId = requestAnimationFrame(tick);
-  }
-
-  function stopClock() {
-    if (rafId === null) return;
-    cancelAnimationFrame(rafId);
-    rafId = null;
-  }
-
-  // ---------------------------------------------------------------------------
-  // Rotasi urutan (bukan shuffle).
-  //
-  // Rotasi memindahkan seluruh urutan sebagai satu blok utuh, jadi jarak antara
-  // sebuah logo di baris ini dan logo yang sama di baris lain SELALU sama besar
-  // untuk semua logo — dan konstan itu tidak pernah nol. Shuffle acak tidak
-  // punya jaminan ini: sesekali ia menghasilkan susunan yang kebetulan sejajar.
-  // ---------------------------------------------------------------------------
-  function rotateList(list, n) {
-    var items = Array.prototype.slice.call(list.children);
-    var count = items.length;
-    if (!count || !n) return;
-
-    n = ((n % count) + count) % count;
-    if (!n) return;
-
-    var frag = document.createDocumentFragment();
-    var reordered = items.slice(n).concat(items.slice(0, n));
-    for (var i = 0; i < reordered.length; i++) frag.appendChild(reordered[i]);
-    list.appendChild(frag);
-  }
-
-  scope.querySelectorAll("[data-css-marquee]").forEach(function (marquee) {
-    var list = marquee.querySelector("[data-css-marquee-list]");
+  document.querySelectorAll('[data-css-marquee]').forEach(function (marquee) {
+    var list = marquee.querySelector('[data-css-marquee-list]');
     if (!list || marquee.dataset.marqueeReady) return;
-    marquee.dataset.marqueeReady = "true";
+    marquee.dataset.marqueeReady = 'true';
 
-    var isReverse = marquee.dataset.direction === "reverse";
+    var speed = parseFloat(marquee.dataset.speed) || 75; // pixels per second
+    var isReverse = marquee.dataset.direction === 'reverse';
 
-    var track = document.createElement("div");
-    track.className = "marquee-css__track";
+    var track = document.createElement('div');
+    track.className = 'marquee-css__track';
     marquee.appendChild(track);
     track.appendChild(list);
 
     var clones = [];
-    var baseWidth = 0; // lebar satu copy
-    var pitch = 0; // jarak antara awal satu copy ke copy berikutnya
+    var baseWidth = 0; // width of one copy
+    var pitch = 0; // distance between the start of one copy and the next
+    var offset = 0; // monotonic distance travelled, in px
+    var lastTime = null;
+    var rafId = null;
+    var isVisible = false;
 
-    // Logo di-set `height: 100%` tanpa width. Safari memberi lebar layout 0px
-    // untuk image yang belum ter-load (Chrome memesan ruang dari width/height
-    // milik SVG-nya, itulah kenapa ini cuma muncul di Safari), dan lazy image
-    // yang parkir di luar layar tidak pernah ter-load sama sekali — sehingga
-    // satu copy tetap sempit dan barisnya tersusun tidak rata. Load semuanya di
-    // awal, dengan prioritas rendah supaya section below-the-fold ini tidak
-    // berebut bandwidth dengan hero.
-    function eagerLoad(target) {
-      target.querySelectorAll("img").forEach(function (img) {
-        img.loading = "eager";
-        img.setAttribute("fetchpriority", "low");
+    // These logos are sized `height: 100%` with no width. Safari gives an image
+    // that has not loaded 0px of layout width (Chrome reserves space from the
+    // SVG's own width/height, which is why this only ever showed up in Safari),
+    // and a lazy image parked off-screen never loads at all — so one copy stayed
+    // narrow and the row tiled unevenly. Load them all up front, at low priority
+    // so this below-the-fold section doesn't compete with the hero.
+    function eagerLoad(scope) {
+      scope.querySelectorAll('img').forEach(function (img) {
+        img.loading = 'eager';
+        img.setAttribute('fetchpriority', 'low');
       });
     }
 
-    // Jaga jumlah copy supaya track selalu menutup container plus satu copy.
+    // Keep enough copies that the track always spans the container plus one copy.
     function ensureCopies() {
       if (baseWidth <= 0) return;
       var needed = Math.max(2, Math.ceil(marquee.offsetWidth / baseWidth) + 1);
       while (clones.length < needed - 1) {
         var clone = list.cloneNode(true);
-        clone.setAttribute("aria-hidden", "true");
-        clone.setAttribute("data-css-marquee-clone", "");
+        clone.setAttribute('aria-hidden', 'true');
+        clone.setAttribute('data-css-marquee-clone', '');
         eagerLoad(clone);
         track.appendChild(clone);
         clones.push(clone);
@@ -879,65 +664,75 @@ function initCSSMarquee(container) {
         baseWidth = w;
         ensureCopies();
       }
-      // Wrap pakai jarak nyata antara dua copy, bukan lebar satu copy — itu
-      // tetap akurat meski sebuah copy terukur ganjil. Dibulatkan supaya baris
-      // yang isinya identik selalu dapat pitch yang sama persis; selisih
-      // sub-pixel saja sudah cukup membuat dua baris merayap saling mendekat.
-      var p = clones.length
-        ? clones[0].getBoundingClientRect().left -
-          list.getBoundingClientRect().left
-        : w;
-      if (p > 0 && Math.abs(p - pitch) > 0.5) pitch = Math.round(p);
+      // Wrap by the real distance between two copies rather than by one copy's
+      // reported width — that stays exact even if a copy measures oddly.
+      var p = clones.length ? clones[0].getBoundingClientRect().left - list.getBoundingClientRect().left : w;
+      if (p > 0 && Math.abs(p - pitch) > 0.5) pitch = p;
     }
 
-    function render(offset) {
+    function render() {
       if (pitch <= 0) {
-        track.style.transform = "translate3d(0, 0, 0)";
+        track.style.transform = 'translate3d(0, 0, 0)';
         return;
       }
       var m = ((offset % pitch) + pitch) % pitch; // 0..pitch
       var x = isReverse ? m - pitch : -m;
-      track.style.transform = "translate3d(" + x + "px, 0, 0)";
+      track.style.transform = 'translate3d(' + x + 'px, 0, 0)';
     }
 
-    rotateList(list, parseInt(marquee.dataset.rotate, 10) || 0);
+    function animate(timestamp) {
+      if (lastTime === null) lastTime = timestamp;
+      // Clamp so a backgrounded tab or a long frame can't teleport the track.
+      var dt = Math.min((timestamp - lastTime) / 1000, 0.05);
+      lastTime = timestamp;
+      offset += speed * dt;
+      render();
+      rafId = isVisible ? requestAnimationFrame(animate) : null;
+    }
+
+    function start() {
+      if (rafId !== null || prefersReduced) return;
+      lastTime = null;
+      rafId = requestAnimationFrame(animate);
+    }
+
+    function stop() {
+      if (rafId === null) return;
+      cancelAnimationFrame(rafId);
+      rafId = null;
+    }
+
     eagerLoad(list);
     measure();
-    render(globalOffset);
+    render();
 
-    var row = { render: render, visible: false };
-    rows.push(row);
-
-    // Ukur ulang setiap kali baris benar-benar berubah ukuran (logo selesai
-    // load, font swap, container resize) daripada percaya satu kali baca saat
-    // DOMContentLoaded.
+    // Re-measure whenever the row actually changes size (logos finishing loading,
+    // font swap, container resize) instead of trusting one DOMContentLoaded read.
     if (window.ResizeObserver) {
       new ResizeObserver(function () {
         measure();
-        render(globalOffset);
+        render();
       }).observe(list);
     }
-
-    list.querySelectorAll("img").forEach(function (img) {
-      if (!img.complete) img.addEventListener("load", measure, { once: true });
+    list.querySelectorAll('img').forEach(function (img) {
+      if (!img.complete) img.addEventListener('load', measure, { once: true });
     });
-    window.addEventListener("load", measure);
-    window.addEventListener("resize", measure);
+    window.addEventListener('load', measure);
+    window.addEventListener('resize', measure);
 
     new IntersectionObserver(
       function (entries) {
         entries.forEach(function (entry) {
-          if (entry.isIntersecting === row.visible) return;
-          row.visible = entry.isIntersecting;
-          visibleCount += entry.isIntersecting ? 1 : -1;
-          if (visibleCount > 0) startClock();
-          else stopClock();
+          isVisible = entry.isIntersecting;
+          if (isVisible) start();
+          else stop();
         });
       },
-      { threshold: 0 }
+      { threshold: 0 },
     ).observe(marquee);
   });
 }
+
 
 function headingAnimation(container) {
   gsap.registerPlugin(ScrollTrigger, SplitText);
@@ -1685,35 +1480,33 @@ function processAnimation(container) {
   });
 }
 
-function initTeamSection(container) {
+function teamSlider(container) {
   const section = container.querySelector(".about-t_wrap");
+
   if (!section) return;
 
-  const visualSliderEl = section.querySelector(".about-t_visual_slider");
-  const contentSliderEl = section.querySelector(".about-t_slider");
+  const teamSliderEl = section.querySelector(".about-t_visual_slider");
 
-  if (!visualSliderEl || !contentSliderEl) return;
+  const slides = teamSliderEl.querySelectorAll(".about-t_visual_item");
+  const slideCount = slides.length;
 
-  const loopAmount = 4;
+  if (slideCount > 0 && slideCount < 10) {
+    const wrapper = slides[0].parentNode;
+    let currentCount = slideCount;
+    let index = 0;
 
-  const teamContentInstance = new Swiper(contentSliderEl, {
-    slideClass: "about-t_item_wrap",
-    slidesPerView: "auto",
-    loop: true,
-    loopedSlides: loopAmount,
-    simulateTouch: false,
-    allowTouchMove: false,
-    navigation: {
-      nextEl: ".about-t_wrap [data-control='next']",
-      prevEl: ".about-t_wrap [data-control='prev']",
-    },
-  });
+    while (currentCount < 10) {
+      const clone = slides[index % slideCount].cloneNode(true);
+      wrapper.appendChild(clone);
+      currentCount++;
+      index++;
+    }
+  }
 
-  const teamInstance = new Swiper(visualSliderEl, {
+  teamInstance = new Swiper(teamSliderEl, {
     slideClass: "about-t_visual_item",
     slidesPerView: "auto",
     loop: true,
-    loopedSlides: loopAmount,
     simulateTouch: false,
     allowTouchMove: false,
     centeredSlides: true,
@@ -1725,10 +1518,36 @@ function initTeamSection(container) {
     effect: "coverflow",
     coverflowEffect: {
       rotate: 0,
-      stretch: 0,
+      stretch: -0,
       depth: 200,
       modifier: 1,
       slideShadows: false,
+    },
+    // breakpoints: {
+    //   1024: {
+    //     slidesPerView: 5,
+    //   },
+    // },
+    // observer: true,
+    // observeParents: true,
+  });
+}
+
+function teamContentSlider(container) {
+  const section = container.querySelector(".about-t_wrap");
+  if (!section) return;
+
+  const teamContentSliderEl = section.querySelector(".about-t_slider");
+
+  teamContentInstance = new Swiper(teamContentSliderEl, {
+    slideClass: "about-t_item_wrap",
+    slidesPerView: "auto",
+    loop: true,
+    simulateTouch: false,
+    allowTouchMove: false,
+    navigation: {
+      nextEl: ".about-t_wrap [data-control='next']",
+      prevEl: ".about-t_wrap [data-control='prev']",
     },
   });
 }
@@ -2061,67 +1880,3 @@ function renderRecaptcha(container) {
     });
   });
 }
-
-function scrollToProject(container) {
-  const hash = window.location.hash.substring(1);
-  if (!hash) return;
-
-  const targetElement = container.querySelector(
-    `details[data-content="${hash}"]`
-  );
-
-  if (targetElement) {
-    targetElement.setAttribute("open", "");
-
-    const persenOffset = 15;
-    const offsetNilai = (window.innerHeight * persenOffset) / 100;
-
-    gsap.to(window, {
-      duration: 1.2,
-      scrollTo: {
-        y: targetElement,
-        offsetY: offsetNilai,
-      },
-      ease: "power3.inOut",
-    });
-  }
-}
-
-document.addEventListener("click", function (e) {
-  const btn = e.target.closest("[data-link]");
-
-  if (btn) {
-    e.preventDefault();
-    const slug = btn.getAttribute("data-link");
-
-    const innerLink = btn.querySelector("a");
-    let basePath = "/referenzen";
-
-    if (
-      innerLink &&
-      innerLink.getAttribute("href") &&
-      innerLink.getAttribute("href") !== "#"
-    ) {
-      basePath = innerLink.getAttribute("href");
-    }
-
-    const targetUrl = `${basePath}#${slug}`;
-    const currentPath = window.location.pathname;
-
-    const cleanCurrentPath = currentPath.replace(/\/$/, "");
-    const cleanBasePath = basePath.replace(/\/$/, "");
-
-    if (cleanCurrentPath === cleanBasePath) {
-      window.history.pushState(null, null, targetUrl);
-      scrollToProject(document);
-    } else {
-      barba.go(targetUrl);
-    }
-  }
-});
-
-window.addEventListener("DOMContentLoaded", () => {
-  setTimeout(() => {
-    scrollToProject(document);
-  }, 300);
-});
