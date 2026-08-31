@@ -845,7 +845,6 @@
     initHighlightText,
     initWorkStack,
     initStepAnimation,
-    initWorkSlider,
   ];
 
   const HASH_SCROLL_DELAY_MS = 200;
@@ -1898,6 +1897,8 @@
         currentEls.forEach((el) => setText(el, activeIndex + 1));
       }
 
+      // `item` is both the tab and the content panel here, so `lines` are the
+      // block elements inside it.
       const slides = items.map((item, i) => ({
         item,
         visual: visualItems[i] || null,
@@ -1910,6 +1911,11 @@
         item.setAttribute("aria-selected", String(isActive));
       }
 
+      // Deliberately does not reschedule on a skipped tick — goTo's onComplete and
+      // the ScrollTrigger below own restarting it. createAutoplay() registers the
+      // teardown this module was missing: the old delayedCall kept firing goTo
+      // against a detached slider for the rest of the session after Barba removed
+      // the page, and every further visit stacked another one on top.
       const autoplay = createAutoplay(autoplayDuration / 1000, () => {
         if (!isInView || isAnimating) return;
         goTo((activeIndex + 1) % slides.length);
@@ -2058,6 +2064,7 @@
 
       items.forEach((item, i) => {
         addPageListener(item, "click", (e) => {
+          // A drag that ends on a tab must not also select it.
           if (swipe.hasDragged) {
             e.preventDefault();
             return;
@@ -2107,6 +2114,9 @@
     });
   }
 
+  // Every knob for the heading reveal in one place. `offset` is in em so the
+  // travel scales with the heading size instead of being a fixed pixel nudge;
+  // `triggerStart` is the one to move if the reveal fires too early.
   const HEADING_REVEAL = {
     offset: "0.4em",
     duration: 0.8,
@@ -2117,6 +2127,8 @@
   function setupTextLinesReveal(container) {
     const scope = container || document;
 
+    // Scoped to the container: a document-wide query picks up the outgoing
+    // page's headings too while both containers are in the DOM.
     const headings = queryAll(scope, "[data-heading-reveal]");
     if (!headings.length) return;
 
@@ -2139,6 +2151,10 @@
           },
         });
 
+        // The whole heading fades up as one block — no SplitText, so nothing
+        // rewrites the markup, nothing has to be reverted, and nothing re-splits
+        // on resize or on a late-loading webfont. Two compositor properties on
+        // one element per heading.
         tl.set(heading, {
           willChange: "transform, opacity",
         }).from(heading, {
@@ -2149,6 +2165,33 @@
 
         return tl;
       });
+
+      // --- Previous animation: brand-colour sweep across the <strong> parts ---
+      // Needs SplitText back: split each "[data-heading-reveal] strong" into
+      // words, keep the instances so they can be reverted in the cleanup below,
+      // then run this instead of the fade-up above.
+      //
+      // const brandColor =
+      //   getComputedStyle(document.documentElement)
+      //     .getPropertyValue("--swatch--brand-500")
+      //     .trim() || "#000";
+      //
+      // const split = new SplitText(text, { type: "words", wordsClass: "word" });
+      //
+      // tl.set(split.words, {
+      //   willChange: "color",
+      //   color: "color-mix(in srgb, var(--_theme---text) 100%, transparent)",
+      // }).to(split.words, {
+      //   keyframes: [
+      //     { color: brandColor, duration: 0.25 },
+      //     {
+      //       color: "color-mix(in srgb, var(--_theme---text) 40%, transparent)",
+      //       duration: 0.35,
+      //     },
+      //   ],
+      //   delay: 0.2,
+      //   stagger: { each: 0.08 },
+      // });
 
       gsap.set(flickerEls, { visibility: "visible" });
 
@@ -2295,12 +2338,18 @@
 
   function initServicesDesktopScroll(container) {
     pageMatchMedia().add("(min-width: 992px)", () => {
+      // Collected and returned as one function. The per-group cleanup used to be
+      // returned from inside `forEach`, where nothing could receive it, so
+      // matchMedia had nothing to run when the viewport dropped below 992px.
       const cleanups = [];
 
       queryAll(container, "[data-service='group']").forEach((group) => {
         const serviceItems = queryAll(group, "[data-content='item']");
         const visualItems = queryAll(group, "[data-visual='item']");
 
+        // A single item makes the pin range `+=0` and the click target
+        // `index / 0` (NaN) — a zero-length pinned trigger that scrub still
+        // drives. Nothing to scroll through, so don't pin at all.
         if (serviceItems.length < 2 || !visualItems.length) return;
 
         let activeIndex = -1;
@@ -2367,6 +2416,8 @@
           },
         });
 
+        // Tracked so crossing the breakpoint back and forth does not stack a new
+        // click handler on every pass — matchMedia re-runs this whole callback.
         const clickHandlers = serviceItems.map((item, index) => {
           item.style.cursor = "pointer";
 
@@ -2407,6 +2458,8 @@
     if (!button) return;
 
     addPageListener(button, "click", () => {
+      // Guarded: this used to throw outright on any page where Lenis had not
+      // loaded, which aborted the rest of the init pass.
       if (lenis) lenis.scrollTo(0);
       else window.scrollTo({ top: 0, behavior: "smooth" });
     });
@@ -2424,13 +2477,20 @@
 
   function initFilterProject(container) {
     const section = container.querySelector("[data-project-wrap]");
+
     if (!section) return;
 
-    if (section.hasAttribute("data-filter-built")) return;
-    section.setAttribute("data-filter-built", "");
+    const filterWrap = section.querySelector('[data-filter="list"]');
+    if (!filterWrap) return;
 
-    const emptyState = section.querySelector('[data-content="empty"]');
+    // Guard against a second init on the same container appending a duplicate
+    // set of category buttons.
+    if (filterWrap.hasAttribute("data-filter-built")) return;
+    filterWrap.setAttribute("data-filter-built", "");
 
+    // Each item's category is read once, up front. The click handler used to
+    // re-query `[data-filter="category"]` inside every item on every click — a
+    // full DOM query per card per filter press.
     const entries = queryAll(section, '[data-content="item"]').map((item) => {
       const categoryEl = item.querySelector('[data-filter="category"]');
 
@@ -2440,6 +2500,27 @@
       };
     });
 
+    const categories = new Set(
+      entries.map((entry) => entry.category).filter(Boolean)
+    );
+
+    const fragment = document.createDocumentFragment();
+
+    categories.forEach((category) => {
+      const btn = document.createElement("button");
+      btn.setAttribute("data-filter", "item");
+      btn.className = "work_filter_item";
+
+      btn.innerHTML = `<div class="work_filter_text u-text-style-small">${category}</div>`;
+
+      fragment.appendChild(btn);
+    });
+
+    filterWrap.appendChild(fragment);
+
+    // Scoped to the section, not the document: during a `sync: true` transition
+    // both containers are in the DOM, so a document-wide query would also bind
+    // handlers to the outgoing page's buttons and keep that container alive.
     const allFilterButtons = queryAll(section, '[data-filter="item"]');
 
     allFilterButtons.forEach((button) => {
@@ -2451,27 +2532,13 @@
         const selectedFilter = button.textContent.trim();
         const showAll = selectedFilter === FILTER_SHOW_ALL;
 
-        let visibleCount = 0;
-
         entries.forEach(({ item, category }) => {
-          const isMatch = showAll || category === selectedFilter;
-          const display = isMatch ? "flex" : "none";
+          const display = showAll || category === selectedFilter ? "" : "none";
 
-          if (isMatch) {
-            visibleCount++;
-          }
-
-          if (item.style.display !== display) {
-            item.style.display = display;
-          }
+          // Only write when it actually changes — an unchanged `style.display`
+          // assignment still dirties style for that element.
+          if (item.style.display !== display) item.style.display = display;
         });
-
-        if (emptyState) {
-          const emptyDisplay = visibleCount === 0 ? "block" : "none";
-          if (emptyState.style.display !== emptyDisplay) {
-            emptyState.style.display = emptyDisplay;
-          }
-        }
       });
     });
   }
@@ -2482,6 +2549,8 @@
 
     const navButton = document.querySelector(".nav_button_wrap");
 
+    // Delegated on document and bound once for the session — the nav is outside
+    // the Barba container, so it is never rebuilt.
     document.addEventListener("click", (e) => {
       const link = e.target.closest(
         ".nav_mobile_menu_wrap a, .nav_dropdown_component a"
@@ -2543,6 +2612,10 @@
     }
   }
 
+  // MX lookups are network round-trips, and the same handful of domains come back
+  // over and over — the client's own domain, gmail.com, and whatever the visitor
+  // mistyped a moment ago. Cached for the session, keyed by domain. Failures are
+  // evicted so the next attempt can retry.
   const emailDomainCache = new Map();
 
   function lookupEmailDomain(domain) {
@@ -2908,179 +2981,264 @@
     });
   }
 
+  const STEP_CLIP_SHOWN = "inset(0% 0% 0% 0%)";
+  const STEP_CLIP_HIDDEN = "inset(100% 0% 0% 0%)";
+  const STEP_CLIP_TWEEN = {
+    duration: 0.6,
+    ease: "power2.out",
+    overwrite: "auto",
+  };
+
   function initStepAnimation(container) {
-    const section = container.querySelector(".step_wrap") || container;
-    if (!section) return;
+    const mm = pageMatchMedia();
 
-    const textItems = section.querySelectorAll(".step_item_wrap");
-    const visualItems = section.querySelectorAll(".step_visual");
-    const progressBars = section.querySelectorAll(".step_item_progress");
-
-    let activeIndex = 0;
-    let progressTween = null;
-    let isInView = false;
-
-    const STEP_DURATION = 5;
-
-    gsap.set(progressBars, { transformOrigin: "left center", scaleX: 0 });
-
-    function updateCardStack(index, animate = true) {
-      visualItems.forEach((card, i) => {
-        let props = {};
-        let baseZIndex = 50 - i;
-
-        if (i < index) {
-          props = {
-            scale: 1.15,
-            opacity: 0,
-            rotation: 0,
-            yPercent: -5,
-            zIndex: baseZIndex,
-          };
-        } else if (i === index) {
-          props = {
-            scale: 1,
-            opacity: 1,
-            rotation: 0,
-            yPercent: 0,
-            zIndex: baseZIndex,
-          };
+    function updateActiveItem(textItems, activeIndex) {
+      textItems.forEach((item, index) => {
+        if (index === activeIndex) {
+          item.setAttribute("active", "");
         } else {
-          let offset = i - index;
-          if (offset === 1) {
-            props = {
-              scale: 0.95,
-              opacity: 0.6,
-              rotation: -5,
-              yPercent: 4,
-              zIndex: baseZIndex,
-            };
-          } else {
-            props = {
-              scale: 0.9,
-              opacity: 0,
-              rotation: -10,
-              yPercent: 8,
-              zIndex: baseZIndex,
-            };
+          item.removeAttribute("active");
+        }
+      });
+    }
+
+    mm.add("(min-width: 992px)", () => {
+      const stepWrap = container.querySelector("[data-step-wrap]");
+      if (!stepWrap) return;
+
+      const textItems = queryAll(stepWrap, '[data-content="item"]');
+      const visualItems = queryAll(stepWrap, '[data-visual="item"]');
+      const descItems = queryAll(stepWrap, '[data-content="desc"]');
+
+      let currentIndex = 0;
+
+      descItems.forEach((desc, index) => {
+        if (index === 0) {
+          gsap.set(desc, { display: "block", yPercent: 0, autoAlpha: 1 });
+        } else {
+          gsap.set(desc, { display: "block", yPercent: 20, autoAlpha: 0 });
+        }
+      });
+
+      updateActiveItem(textItems, 0);
+
+      let st = ScrollTrigger.create({
+        trigger: stepWrap,
+        start: "top top",
+        end: "bottom bottom",
+        onUpdate: (self) => {
+          const totalItems = textItems.length;
+          let activeIndex = Math.floor(self.progress * (totalItems - 0.01));
+
+          if (activeIndex !== currentIndex) {
+            updateActiveItem(textItems, activeIndex);
+
+            visualItems.forEach((img, index) => {
+              if (index === 0) return;
+
+              gsap.to(img, {
+                clipPath:
+                  index <= activeIndex ? STEP_CLIP_SHOWN : STEP_CLIP_HIDDEN,
+                ...STEP_CLIP_TWEEN,
+              });
+            });
+
+            if (currentIndex >= 0 && descItems[currentIndex]) {
+              gsap.to(descItems[currentIndex], {
+                yPercent: -15,
+                autoAlpha: 0,
+                duration: 0.4,
+                ease: "power2.in",
+                overwrite: "auto",
+              });
+            }
+
+            if (descItems[activeIndex]) {
+              gsap.fromTo(
+                descItems[activeIndex],
+                { yPercent: 20, autoAlpha: 0 },
+                {
+                  yPercent: 0,
+                  autoAlpha: 1,
+                  duration: 0.6,
+                  ease: "power3.out",
+                  delay: 0.15,
+                  overwrite: "auto",
+                }
+              );
+            }
+
+            currentIndex = activeIndex;
           }
-        }
-
-        if (animate) {
-          gsap.to(card, {
-            ...props,
-            duration: 0.6,
-            ease: "power2.out",
-            overwrite: "auto",
-          });
-        } else {
-          gsap.set(card, props);
-        }
-      });
-    }
-
-    function goToStep(index, isInit = false) {
-      activeIndex = index;
-
-      textItems.forEach((item, i) => {
-        if (i === index) item.setAttribute("open", "");
-        else item.removeAttribute("open");
+        },
       });
 
-      updateCardStack(index, !isInit);
-
-      if (progressTween) progressTween.kill();
-
-      gsap.set(progressBars, { scaleX: 0 });
-
-      progressTween = gsap.fromTo(
-        progressBars[index],
-        { scaleX: 0 },
-        {
-          scaleX: 1,
-          duration: STEP_DURATION,
-          ease: "none",
-          paused: !isInView,
-          onComplete: () => {
-            let nextIndex = (index + 1) % textItems.length;
-            goToStep(nextIndex);
-          },
-        }
-      );
-    }
-
-    ScrollTrigger.create({
-      trigger: section,
-      start: "top bottom",
-      end: "bottom top",
-      onEnter: () => {
-        isInView = true;
-        if (progressTween) progressTween.resume();
-      },
-      onLeave: () => {
-        isInView = false;
-        if (progressTween) progressTween.pause();
-      },
-      onEnterBack: () => {
-        isInView = true;
-        if (progressTween) progressTween.resume();
-      },
-      onLeaveBack: () => {
-        isInView = false;
-        if (progressTween) progressTween.pause();
-      },
+      return () => {
+        st.kill();
+        gsap.set(descItems, { clearProps: "all" });
+      };
     });
 
-    textItems.forEach((item, i) => {
-      const summary = item.querySelector(".step_item_head");
-      if (summary) {
-        summary.addEventListener("click", (e) => {
-          e.preventDefault();
-          if (activeIndex !== i) {
-            goToStep(i);
+    mm.add("(max-width: 991px)", () => {
+      const stepWrap = container.querySelector("[data-step-wrap]");
+      if (!stepWrap) return;
+
+      const textItems = queryAll(stepWrap, '[data-content="item"]');
+      const visualItems = queryAll(stepWrap, '[data-visual="item"]');
+      const descItems = queryAll(stepWrap, '[data-content="desc"]');
+
+      let currentIndex = -1;
+      let progressAnim = null;
+
+      gsap.set(descItems, { autoAlpha: 0, display: "none" });
+
+      function goToStep(index) {
+        if (index === currentIndex) return;
+
+        let prevIndex = currentIndex;
+        currentIndex = index;
+
+        if (progressAnim) progressAnim.kill();
+
+        textItems.forEach((item, i) => {
+          if (i === index) {
+            item.setAttribute("active", "");
+
+            progressAnim = gsap.fromTo(
+              item,
+              { "--progress": 0 },
+              {
+                "--progress": 1,
+                duration: 8,
+                ease: "none",
+                onComplete: () => {
+                  let nextIndex = (currentIndex + 1) % textItems.length;
+                  goToStep(nextIndex);
+                },
+              }
+            );
+          } else {
+            item.removeAttribute("active");
+            gsap.set(item, { "--progress": 0 });
           }
         });
-      }
-    });
 
-    goToStep(0, true);
-  }
+        visualItems.forEach((img, i) => {
+          gsap.to(img, {
+            clipPath: i === index ? STEP_CLIP_SHOWN : STEP_CLIP_HIDDEN,
+            ...STEP_CLIP_TWEEN,
+          });
+        });
 
-  function initWorkSlider(container) {
-    const visualItems = container.querySelectorAll(".work-f_visual");
-
-    function updateVisuals(activeIndex) {
-      visualItems.forEach((item, index) => {
-        if (index === activeIndex) {
-          item.setAttribute("data-status", "active");
-        } else {
-          item.setAttribute("data-status", "inactive");
+        if (prevIndex >= 0) {
+          gsap.to(descItems[prevIndex], {
+            autoAlpha: 0,
+            duration: 0.4,
+            overwrite: "auto",
+            onComplete: () =>
+              gsap.set(descItems[prevIndex], { display: "none" }),
+          });
         }
+
+        gsap.fromTo(
+          descItems[index],
+          { autoAlpha: 0, display: "none" },
+          {
+            autoAlpha: 1,
+            display: "block",
+            duration: 0.4,
+            delay: 0.4,
+            overwrite: "auto",
+          }
+        );
+      }
+
+      const clickHandlers = [];
+      textItems.forEach((item, index) => {
+        const handler = () => goToStep(index);
+        item.addEventListener("click", handler);
+        clickHandlers.push({ item, handler });
       });
-    }
 
-    const workSlider = new Swiper(".work-f_slider", {
-      slideClass: "work-f_item_wrap",
-      slidesPerView: 1,
-      spaceBetween: 32,
-      loop: true,
-      speed: 600,
+      goToStep(0);
 
-      navigation: {
-        nextEl: '[data-button="next"]',
-        prevEl: '[data-button="prev"]',
-      },
-
-      on: {
-        init: function () {
-          updateVisuals(this.realIndex);
-        },
-        slideChange: function () {
-          updateVisuals(this.realIndex);
-        },
-      },
+      return () => {
+        if (progressAnim) progressAnim.kill();
+        clickHandlers.forEach(({ item, handler }) =>
+          item.removeEventListener("click", handler)
+        );
+        textItems.forEach((item) => {
+          item.removeAttribute("active");
+          gsap.set(item, { clearProps: "--progress" });
+        });
+        gsap.set(descItems, { clearProps: "all" });
+        gsap.set(visualItems, { clearProps: "clipPath" });
+      };
     });
   }
+
+  // -----------------------------------------
+  // 10 · PARKED / NOT IN USE
+  // -----------------------------------------
+  //
+  // Kept for reference, not wired into either task list. To bring one back,
+  // uncomment it and add its name to LIGHT_PAGE_TASKS or HEAVY_PAGE_TASKS in
+  // section 09.
+
+  // function initialHeroAnimation(container) {}
+
+  // Was listed in the page tasks; the nav dropdown is populated by Webflow's own
+  // CMS binding now.
+  // function navLinkReference() {
+  //   const source = document.querySelector('[data-collection="reference"]');
+  //   const targets = document.querySelectorAll('[data-dropdown="reference"]');
+
+  //   if (!source || !targets.length) return;
+
+  //   const items = source.querySelectorAll('[data-collection="item"]');
+
+  //   targets.forEach((target) => {
+  //     target.innerHTML = "";
+
+  //     items.forEach((item) => {
+  //       const link = item.querySelector('[data-collection="link"]');
+  //       const title = item.querySelector(".nav_dropdown_text")?.textContent;
+  //       const href = link?.href;
+
+  //       const li = document.createElement("li");
+  //       li.className = "nav_dropdown_item";
+
+  //       li.innerHTML = `
+  //         <a href="${href}" class="nav_dropdown_link w-variant-23049969-09ac-2789-520b-3c6ae895bbc6 w-inline-block">
+  //           <div class="nav_dropdown_text">${title}</div>
+  //         </a>
+  //       `;
+
+  //       target.appendChild(li);
+  //     });
+  //   });
+  // }
+
+  // Superseded by the delegated listener in navDropdownHandler().
+  // function navDropdownMobileHandler() {
+  //   const navLinks = document.querySelectorAll(".nav_mobile_menu_wrap a");
+  //   const navButton = document.querySelector(".nav_button_wrap");
+
+  //   navLinks.forEach((link) => {
+  //     link.addEventListener("click", () => {
+  //       if (navButton.classList.contains("w--open")) {
+  //         navButton.click();
+  //       }
+  //     });
+  //   });
+  // }
+
+  // -----------------------------------------
+  // PUBLIC SURFACE
+  // -----------------------------------------
+  //
+  // Deliberately small. Webflow embeds and CMS-authored markup should reach the
+  // site through these, not by assuming a global function exists.
 
   window.ZDK = {
     get lenis() {
