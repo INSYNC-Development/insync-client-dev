@@ -1,0 +1,33 @@
+{
+  "name": "machine-reveal-v2",
+  "supersedes": "machine-reveal-v1",
+  "source": "_source/test-new-ccs.mov",
+  "sourceOriginalName": "Test New CCS.mov",
+  "frames": 152,
+  "sourceFps": 30,
+  "durationSeconds": 5.067,
+  "format": "webp",
+  "quality": 82,
+  "filePattern": "machine-reveal-####.webp",
+  "firstFrame": 1,
+  "padding": 4,
+  "tiers": [
+    {
+      "dir": "1440",
+      "width": 1440,
+      "height": 812,
+      "bytes": 5722720,
+      "avgFrameBytes": 37649
+    },
+    {
+      "dir": "720",
+      "width": 720,
+      "height": 406,
+      "bytes": 2762636,
+      "avgFrameBytes": 18175
+    }
+  ],
+  "poster": "../../posters/machine-reveal-v2-poster.jpg",
+  "videoFallback": "../../videos/machine-reveal-v2.mp4",
+  "notes": "Tighter re-render of the v1 shot: same 1914x1080/30fps/152 frames, but the machine fills more of the frame (Y-SSIM 0.629 against v1, i.e. genuinely different footage). Frame 0001 is fully black on purpose (reveal-from-dark) - poster is frame 0152. Frame filenames are deliberately identical to v1 so switching versions is a one-line baseUrl change in the player config."
+}
