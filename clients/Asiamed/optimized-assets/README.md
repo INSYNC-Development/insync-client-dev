@@ -76,8 +76,10 @@ Optimized 2026-09-08 by [[Shidqi]] · per [[Webflow Video Optimization]]
 
 | File | Route | Dim | Size | Notes |
 |---|---|---|--:|---|
-| `asiamed/videos/needle-insertion.mp4` | **CDN** | 1080×1340 | 191 KB | H.264, CRF 26, faststart, no audio |
-| `asiamed/posters/needle-insertion-poster.jpg` | **CDN** | 1080×1340 | 49 KB | frame at t=0, JPEG q6 |
+| `asiamed/videos/needle-insertion-pingpong.mp4` | **CDN** | 1080×1340 | 341 KB | **the one that ships** — H.264, CRF 26, faststart, no audio, 192 frames / 6.4 s |
+| `asiamed/videos/needle-insertion.mp4` | **CDN** | 1080×1340 | 191 KB | forward-only original; kept as the source of the ping-pong, not embedded |
+| `asiamed/posters/needle-insertion-pingpong-poster.jpg` | **CDN** | 1080×1340 | 49 KB | frame at t=0, JPEG q6 |
+| `asiamed/posters/needle-insertion-poster.jpg` | **CDN** | 1080×1340 | 49 KB | identical file — the SOP derives each poster's name from its video, so both exist |
 
 ## Method — and the two places this clip departs from the guide
 
@@ -136,3 +138,49 @@ visible jump when playback starts.
 
 **Verified:** `moov` atom at offset 36, before `mdat` (faststart works) ·
 `yuv420p` · 0 audio streams · poster 1080×1340, under the 100 KB cap.
+
+## Ping-pong (boomerang) loop — baked into the file, not done in JS
+
+Client asked for the clip to run forward then backward on a loop. It ships as a
+**baked ping-pong**: forward frames + reversed frames concatenated into one
+file, played with a plain `loop` attribute. **No JavaScript.**
+
+```bash
+ffmpeg -i 0907.mp4 -filter_complex \
+  "[0:v]split[a][b];[b]reverse,trim=start_frame=1:end_frame=96,setpts=PTS-STARTPTS[r];[a][r]concat=n=2:v=1[out]" \
+  -map "[out]" -c:v libx264 -crf 26 -preset slower -an \
+  -movflags +faststart -pix_fmt yuv420p needle-insertion-pingpong.mp4
+```
+
+The `trim=start_frame=1:end_frame=96` matters. A naive `[a][r]concat` duplicates
+the turnaround frame *and* the first frame, so the animation freezes for one
+frame at each end of every cycle. Trimming both ends off the reversed segment
+gives 192 frames instead of 194 and removes both hitches. Verified by frame
+diff: turnaround MSE 0.04 against a 1-frame motion baseline of 0.06 — i.e. the
+seam moves like any other frame, rather than standing still.
+
+### Why not do it in JavaScript
+
+Both JS approaches were measured in Chrome against the real file before choosing:
+
+| approach | result |
+|---|---|
+| `video.playbackRate = -1` | **Throws.** `NotSupportedError: playback rate (-1) is not in the supported range`. Reads back `1`; playback runs forward. No workaround exists. |
+| stepping `currentTime` in rAF | Works and is smooth (0 dropped frames), **but only reaches ~25 fps on the reverse leg** — 3.75 s back vs 3.23 s forward. |
+| `requestVideoFrameCallback` | **Fires 0 times on a paused video** — 0 callbacks in 30 s. Only works if the element keeps playing, and is then *worse* than rAF (58 fps, 17 duplicate presentations). |
+
+The reverse-leg slowdown traces to this clip having **exactly one keyframe** —
+every backward seek re-decodes the P-frame chain from frame 0. Measured backward
+seek latency **23 ms median vs 7.8 ms forward**, and **~50 decodes per displayed
+frame** (4,909 decodes for one 97-frame reverse pass). The visible symptom is not
+stutter but **asymmetry** — the boomerang running slower backward than forward.
+
+Fixing that in-file would mean re-encoding with `-g 15`, which costs **+171%
+file size** (191 KB → 518 KB) and still leaves the JS running every frame. The
+baked ping-pong is 341 KB, runs at a true 30 fps in both directions, costs no
+JS, no decode overhead and no battery, and cannot desync. It is strictly better
+here; the only thing it gives up is the ability to change the loop style without
+re-encoding.
+
+**Quality:** the forward half measures SSIM 0.9985 against a lossless reference —
+identical to the forward-only file, since it is the same encode settings.
