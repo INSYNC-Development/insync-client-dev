@@ -1,0 +1,52 @@
+{
+  "name": "machine-reveal-v3",
+  "supersedes": "machine-reveal-v1",
+  "source": "_source/machine-reveal-v3.mp4",
+  "sourceOriginalName": "unknown - the drop arrived already named machine-reveal-v3.mp4",
+  "sourceDimensions": "3836x2160",
+  "frames": 121,
+  "sourceFps": 24,
+  "durationSeconds": 5.041667,
+  "format": "webp",
+  "quality": 82,
+  "filePattern": "machine-reveal-####.webp",
+  "firstFrame": 1,
+  "padding": 4,
+  "tiers": [
+    {
+      "dir": "2560",
+      "width": 2560,
+      "height": 1442,
+      "frames": 121,
+      "bytes": 7868958,
+      "avgFrameBytes": 65033
+    },
+    {
+      "dir": "1440",
+      "width": 1440,
+      "height": 812,
+      "frames": 121,
+      "bytes": 4114252,
+      "avgFrameBytes": 34002
+    },
+    {
+      "dir": "720",
+      "width": 720,
+      "height": 406,
+      "frames": 121,
+      "bytes": 1697170,
+      "avgFrameBytes": 14026
+    }
+  ],
+  "poster": "../../posters/machine-reveal-v3-poster.jpg",
+  "posterFrame": 121,
+  "videoFallback": "../../videos/machine-reveal-v3.mp4",
+  "colour": "master is untagged; measured limited-range bt709 (decoded in_range=limited:out_range=full, verified against the live v1 tier)",
+  "qualityFloorSSIM": 0.968,
+  "measuredWorstSSIM": {
+    "2560": 0.9926,
+    "1440": 0.9909,
+    "720": 0.99
+  },
+  "notes": "4K re-render of the v1 framing, NOT of v2 (Y-SSIM against v1 0.835, against v2 0.638). Two things differ from v1 beyond resolution and must be signed off before swapping: (a) 121 frames at 24 fps instead of 152 at 30 fps, so the scroll scrub has ~20% fewer sample points; (b) the fade-up-from-black opening is gone - v1 frame 0001 is pure black and rises over ~12 frames, v3 frame 0001 already shows the lit silhouette (mean luma 32.4) and dips slightly before revealing. The 2560 tier is new and is the point of this version: it only pays off once the player sizes its canvas by devicePixelRatio (see cdn-swap-checklist.md). Frame filenames match v1/v2 so the tier swap stays a one-line baseUrl change, but frameCount must go 150 -> 121."
+}
