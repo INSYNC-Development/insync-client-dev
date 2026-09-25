@@ -32,37 +32,95 @@ function navScrollBehavior() {
 /* ================================
   Glossary
 ================================ */
-function initGlossaryContent() {
-  const group = document.querySelector('[data-filter="group"]');
-  const source = group?.nextElementSibling?.classList.contains("w-dyn-list")
-    ? group.nextElementSibling
-    : document.querySelector(".glossary_wrap .w-dyn-list");
+function findGlossarySource(root) {
+  const group = root.querySelector('[data-filter="group"]');
+  const sibling = group?.nextElementSibling;
 
-  const sourceItems = source?.querySelectorAll("a.glossary_item");
+  if (sibling?.classList.contains("w-dyn-list")) return sibling;
+
+  return root.querySelector(".glossary_wrap .w-dyn-list");
+}
+
+// Webflow renders max 100 items per collection list page. With pagination
+// enabled on the hidden source list, follow the "Next" links and pull the
+// items from every page so all letters are available.
+async function collectGlossarySourceItems(source) {
+  const toData = (link) => ({
+    title: link.textContent.trim(),
+    href: link.getAttribute("href"),
+  });
+
+  const items = [...source.querySelectorAll("a.glossary_item")].map(toData);
+  const visited = new Set([window.location.href]);
+  let nextLink = source.querySelector("a.w-pagination-next");
+
+  while (nextLink && visited.size < 50) {
+    const url = new URL(nextLink.getAttribute("href"), window.location.href)
+      .href;
+
+    if (visited.has(url)) break;
+    visited.add(url);
+
+    try {
+      const response = await fetch(url);
+      if (!response.ok) break;
+
+      const doc = new DOMParser().parseFromString(
+        await response.text(),
+        "text/html"
+      );
+      const pageSource = findGlossarySource(doc);
+      if (!pageSource) break;
+
+      items.push(
+        ...[...pageSource.querySelectorAll("a.glossary_item")].map(toData)
+      );
+      nextLink = pageSource.querySelector("a.w-pagination-next");
+    } catch (error) {
+      console.warn("[Glossary] Could not load next page:", url, error);
+      break;
+    }
+  }
+
+  return items;
+}
+
+async function initGlossaryContent() {
+  const group = document.querySelector('[data-filter="group"]');
+  const source = findGlossarySource(document);
   const targetContent = group?.querySelector('[data-filter="content"]');
   const targetCategory = group?.querySelector(".glossary_list");
 
   if (
     !group ||
     !source ||
-    !sourceItems.length ||
+    !source.querySelector("a.glossary_item") ||
     !targetContent ||
     !targetCategory
   )
     return;
 
-  const groups = {};
+  // Keeps initAutoFilter away from this group until all pages are in.
+  group.dataset.glossaryLoading = "true";
 
-  sourceItems.forEach((item) => {
-    const title = item.textContent.trim();
-    const href = item.getAttribute("href");
+  const sourceItems = await collectGlossarySourceItems(source);
+  const groups = {};
+  const seen = new Set();
+
+  sourceItems.forEach(({ title, href }) => {
+    if (!title || seen.has(href)) return;
+    seen.add(href);
+
     const firstLetter = title.charAt(0).toUpperCase();
 
-    if (!title) return;
     if (!groups[firstLetter]) groups[firstLetter] = [];
 
     groups[firstLetter].push({ title, href });
   });
+
+  Object.values(groups).forEach((list) =>
+    list.sort((a, b) => a.title.localeCompare(b.title, "en"))
+  );
 
   const letters = Object.keys(groups).sort();
 
@@ -112,6 +170,20 @@ function initGlossaryContent() {
   });
 
   source.remove();
+  delete group.dataset.glossaryLoading;
+}
+
+function initGlossary() {
+  initGlossaryContent()
+    .catch((error) => console.warn("[Glossary] Init failed:", error))
+    .finally(() => {
+      const group = document.querySelector('[data-filter="group"]');
+      if (group) delete group.dataset.glossaryLoading;
+
+      initGlossaryLetterFilter();
+      initAutoFilter();
+      ScrollTrigger.refresh();
+    });
 }
 
 function updateGlossaryCategoryVisibility(group) {
@@ -907,6 +979,7 @@ function initCheckboxFilter(group, data) {
 function initAutoFilter() {
   document.querySelectorAll('[data-filter="group"]').forEach((group) => {
     if (group._autoFilterInitialized) return;
+    if (group.dataset.glossaryLoading === "true") return;
 
     group._autoFilterInitialized = true;
 
@@ -2131,8 +2204,7 @@ function initFunction() {
   initHighlightText();
   initHeroScrollAnimation();
   initNumberOdometer();
-  initGlossaryContent();
-  initGlossaryLetterFilter();
+  initGlossary();
   initAutoTOC();
   updateTocLines();
   initSocialShare();
